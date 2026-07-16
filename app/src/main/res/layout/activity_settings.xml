@@ -1,0 +1,153 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="RaspiCar instellingen"
+            android:textColor="@color/text_primary"
+            android:textSize="30sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="V1 • LineageOS 23.2 • 1280×800"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp" />
+
+        <Switch
+            android:id="@+id/autoWazeSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:layout_marginTop="22dp"
+            android:background="@drawable/card_bg"
+            android:checked="true"
+            android:paddingHorizontal="18dp"
+            android:text="Waze automatisch rechts openen"
+            android:textColor="@color/text_primary"
+            android:textSize="17sp" />
+
+        <Switch
+            android:id="@+id/startGpsSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/card_bg"
+            android:checked="true"
+            android:paddingHorizontal="18dp"
+            android:text="GPS Connector eerst kort openen"
+            android:textColor="@color/text_primary"
+            android:textSize="17sp" />
+
+        <Switch
+            android:id="@+id/weatherSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/card_bg"
+            android:checked="true"
+            android:paddingHorizontal="18dp"
+            android:text="Weer tonen via huidige GPS-locatie"
+            android:textColor="@color/text_primary"
+            android:textSize="17sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Scherm dimmen (HDMI software-overlay)"
+            android:textColor="@color/accent"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <Switch
+            android:id="@+id/dimSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/card_bg"
+            android:paddingHorizontal="18dp"
+            android:text="Dimlaag inschakelen"
+            android:textColor="@color/text_primary"
+            android:textSize="17sp" />
+
+        <SeekBar
+            android:id="@+id/dimSeek"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:max="80"
+            android:progress="35" />
+
+        <Button
+            android:id="@+id/overlayPermissionButton"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="Toestemming voor dimlaag" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Toegang en systeem"
+            android:textColor="@color/accent"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/mediaPermissionButton"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:text="Mediatoegang instellen" />
+
+        <Button
+            android:id="@+id/locationPermissionButton"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:text="Locatietoegang instellen" />
+
+        <Button
+            android:id="@+id/homeSettingsButton"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:text="Als standaard Home-app kiezen" />
+
+        <Button
+            android:id="@+id/androidSettingsButton"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:text="Volledige Android-instellingen" />
+
+        <Button
+            android:id="@+id/testSplitButton"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:text="Split-screen met Waze herstellen" />
+
+        <TextView
+            android:id="@+id/statusText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/card_bg"
+            android:padding="16dp"
+            android:text="Status"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp" />
+    </LinearLayout>
+</ScrollView>

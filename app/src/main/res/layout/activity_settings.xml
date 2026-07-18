@@ -22,7 +22,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="V1 • LineageOS 23.2 • 1280×800"
+            android:text="V2 • LineageOS 23.2 • 1280×800"
             android:textColor="@color/text_secondary"
             android:textSize="14sp" />
 
@@ -34,7 +34,7 @@
             android:background="@drawable/card_bg"
             android:checked="true"
             android:paddingHorizontal="18dp"
-            android:text="Waze automatisch rechts openen"
+            android:text="Waze één keer openen bij start dashboard"
             android:textColor="@color/text_primary"
             android:textSize="17sp" />
 
@@ -61,6 +61,44 @@
             android:text="Weer tonen via huidige GPS-locatie"
             android:textColor="@color/text_primary"
             android:textSize="17sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Spotify en VLC"
+            android:textColor="@color/accent"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <Switch
+            android:id="@+id/externalReturnSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/card_bg"
+            android:checked="true"
+            android:paddingHorizontal="18dp"
+            android:text="Zwevende terugknop boven Spotify en VLC"
+            android:textColor="@color/text_primary"
+            android:textSize="17sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/card_bg"
+            android:padding="16dp"
+            android:text="VLC kan alleen door VLC zelf in Picture-in-Picture gaan. Zet in VLC bij Video → Achtergrond/PiP de PiP-modus aan. Start daarna een video en tik op de zwevende knop ‘VLC zwevend’."
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp" />
+
+        <Button
+            android:id="@+id/vlcSettingsButton"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:text="VLC openen voor PiP-instelling" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -93,7 +131,7 @@
             android:id="@+id/overlayPermissionButton"
             android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:text="Toestemming voor dimlaag" />
+            android:text="Overlaytoegang voor dimmer en terugknop" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -109,7 +147,7 @@
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="8dp"
-            android:text="Mediatoegang instellen" />
+            android:text="Spotify-mediatoegang instellen" />
 
         <Button
             android:id="@+id/locationPermissionButton"
@@ -137,7 +175,7 @@
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="8dp"
-            android:text="Split-screen met Waze herstellen" />
+            android:text="Waze nu rechts openen" />
 
         <TextView
             android:id="@+id/statusText"

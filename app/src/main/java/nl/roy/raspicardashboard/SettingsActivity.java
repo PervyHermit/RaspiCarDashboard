@@ -11,10 +11,10 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.view.View;
-import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public final class SettingsActivity extends Activity {
     static final String PREFS = "dashboard_prefs";
@@ -23,11 +23,15 @@ public final class SettingsActivity extends Activity {
     static final String PREF_WEATHER = "weather_enabled";
     static final String PREF_DIM = "dim_enabled";
     static final String PREF_DIM_PERCENT = "dim_percent";
+    static final String PREF_EXTERNAL_RETURN_OVERLAY = "external_return_overlay";
+
+    private static final String VLC_PACKAGE = "org.videolan.vlc";
 
     private SharedPreferences prefs;
     private Switch autoWazeSwitch;
     private Switch startGpsSwitch;
     private Switch weatherSwitch;
+    private Switch externalReturnSwitch;
     private Switch dimSwitch;
     private SeekBar dimSeek;
     private TextView statusText;
@@ -42,6 +46,7 @@ public final class SettingsActivity extends Activity {
         autoWazeSwitch = findViewById(R.id.autoWazeSwitch);
         startGpsSwitch = findViewById(R.id.startGpsSwitch);
         weatherSwitch = findViewById(R.id.weatherSwitch);
+        externalReturnSwitch = findViewById(R.id.externalReturnSwitch);
         dimSwitch = findViewById(R.id.dimSwitch);
         dimSeek = findViewById(R.id.dimSeek);
         statusText = findViewById(R.id.statusText);
@@ -49,6 +54,7 @@ public final class SettingsActivity extends Activity {
         autoWazeSwitch.setChecked(prefs.getBoolean(PREF_AUTO_WAZE, true));
         startGpsSwitch.setChecked(prefs.getBoolean(PREF_START_GPS, true));
         weatherSwitch.setChecked(prefs.getBoolean(PREF_WEATHER, true));
+        externalReturnSwitch.setChecked(prefs.getBoolean(PREF_EXTERNAL_RETURN_OVERLAY, true));
         dimSwitch.setChecked(prefs.getBoolean(PREF_DIM, false));
         dimSeek.setProgress(prefs.getInt(PREF_DIM_PERCENT, 35));
 
@@ -58,6 +64,20 @@ public final class SettingsActivity extends Activity {
                 prefs.edit().putBoolean(PREF_START_GPS, checked).apply());
         weatherSwitch.setOnCheckedChangeListener((button, checked) ->
                 prefs.edit().putBoolean(PREF_WEATHER, checked).apply());
+
+        externalReturnSwitch.setOnCheckedChangeListener((button, checked) -> {
+            if (checked && !Settings.canDrawOverlays(this)) {
+                button.setChecked(false);
+                openOverlayPermission();
+                return;
+            }
+            prefs.edit().putBoolean(PREF_EXTERNAL_RETURN_OVERLAY, checked).apply();
+            if (!checked) {
+                stopService(new Intent(this, ExternalAppOverlayService.class)
+                        .setAction(ExternalAppOverlayService.ACTION_STOP));
+            }
+            refreshStatus();
+        });
 
         dimSwitch.setOnCheckedChangeListener((button, checked) -> {
             prefs.edit().putBoolean(PREF_DIM, checked).apply();
@@ -75,16 +95,19 @@ public final class SettingsActivity extends Activity {
         });
 
         dimSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 prefs.edit().putInt(PREF_DIM_PERCENT, progress).apply();
                 if (dimSwitch.isChecked() && Settings.canDrawOverlays(SettingsActivity.this)) {
                     updateDimOverlay();
                 }
             }
+
             @Override public void onStartTrackingTouch(SeekBar seekBar) { }
             @Override public void onStopTrackingTouch(SeekBar seekBar) { }
         });
 
+        findViewById(R.id.vlcSettingsButton).setOnClickListener(v -> openVlcForPipSetup());
         findViewById(R.id.overlayPermissionButton).setOnClickListener(v -> openOverlayPermission());
         findViewById(R.id.mediaPermissionButton).setOnClickListener(v -> {
             try {
@@ -102,7 +125,8 @@ public final class SettingsActivity extends Activity {
                 startActivity(new Intent(Settings.ACTION_SETTINGS));
             }
         });
-        findViewById(R.id.androidSettingsButton).setOnClickListener(v -> startActivity(new Intent(Settings.ACTION_SETTINGS)));
+        findViewById(R.id.androidSettingsButton).setOnClickListener(v ->
+                startActivity(new Intent(Settings.ACTION_SETTINGS)));
         findViewById(R.id.testSplitButton).setOnClickListener(v -> {
             Intent dashboard = new Intent(this, DashboardActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -119,10 +143,25 @@ public final class SettingsActivity extends Activity {
         super.onResume();
         hideSystemBars();
         refreshStatus();
+        externalReturnSwitch.setChecked(prefs.getBoolean(PREF_EXTERNAL_RETURN_OVERLAY, true)
+                && Settings.canDrawOverlays(this));
         if (prefs.getBoolean(PREF_DIM, false) && Settings.canDrawOverlays(this)) {
             dimSwitch.setChecked(true);
             updateDimOverlay();
         }
+    }
+
+    private void openVlcForPipSetup() {
+        Intent launch = getPackageManager().getLaunchIntentForPackage(VLC_PACKAGE);
+        if (launch == null) {
+            Toast.makeText(this, "VLC is niet geïnstalleerd", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Toast.makeText(this,
+                "Ga in VLC naar Instellingen → Video → Achtergrond/PiP en kies Picture-in-Picture.",
+                Toast.LENGTH_LONG).show();
+        launch.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        startActivity(launch);
     }
 
     private void openOverlayPermission() {
@@ -149,12 +188,12 @@ public final class SettingsActivity extends Activity {
         StringBuilder status = new StringBuilder();
         status.append("Waze: ").append(isInstalled("com.waze") ? "gevonden" : "niet gevonden").append('\n');
         status.append("GPS Connector: ").append(isInstalled("de.pilablu.gpsconnector") ? "gevonden" : "niet gevonden").append('\n');
-        status.append("VLC: ").append(isInstalled("org.videolan.vlc") ? "gevonden" : "niet gevonden").append('\n');
+        status.append("VLC: ").append(isInstalled(VLC_PACKAGE) ? "gevonden" : "niet gevonden").append('\n');
         status.append("Spotify: ").append(isInstalled("com.spotify.music") ? "gevonden" : "niet gevonden").append('\n');
         status.append("Mediatoegang: ").append(hasNotificationAccess() ? "toegestaan" : "nog toestaan").append('\n');
-        status.append("Locatie: ").append(checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                ? "toegestaan" : "nog toestaan").append('\n');
-        status.append("Dim-overlay: ").append(Settings.canDrawOverlays(this) ? "toegestaan" : "nog toestaan");
+        status.append("Locatie: ").append(checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                        == PackageManager.PERMISSION_GRANTED ? "toegestaan" : "nog toestaan").append('\n');
+        status.append("Overlay: ").append(Settings.canDrawOverlays(this) ? "toegestaan" : "nog toestaan");
         statusText.setText(status.toString());
     }
 

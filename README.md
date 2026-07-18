@@ -1,89 +1,64 @@
-# RaspiCar Dashboard — V1
+# RaspiCar Dashboard V2
 
-Een custom landscape Android-launcher voor:
+Custom landscape launcher/dashboard for a Raspberry Pi 5 running LineageOS on a 1280×800 HDMI touchscreen.
 
-- Raspberry Pi 5
-- LineageOS `23.2-20260520-UNOFFICIAL-KonstaKANG-rpi5`
-- GeeekPi 10.1-inch HDMI touchscreen
-- 1280×800
+## V2 layout
 
-![Design reference](docs/design-reference.png)
+- RaspiCar dashboard on the left.
+- Waze requested on the right in Android split-screen.
+- Spotify-focused mini player with album art, title, artist, progress and previous/play/next controls.
+- Current speed, time, date and weather.
+- Fixed buttons for Waze/GPS, VLC, Spotify and RaspiCar settings.
+- Six user-configurable shortcut slots.
+- Larger icon windows to avoid the clipping seen in V1.
 
-## V1-functies
+## Waze behavior
 
-- Dashboard als Android **Home/launcher**.
-- Opent Waze automatisch als aangrenzend split-screenvenster, bedoeld voor **dashboard links / Waze rechts**.
-- Probeert een verhouding van ongeveer **35% dashboard / 65% Waze** aan te vragen.
-- Optioneel: GPS Connector kort openen voordat Waze start.
-- Tijd en Nederlandse datum.
-- Huidige snelheid via Android Location/GPS Connector.
-- Huidig weer via Open-Meteo en de GPS-locatie.
-- Universele Android MediaSession-widget voor onder andere Spotify, VLC en lokale mediaspelers:
-  - titel en artiest;
-  - albumhoes;
-  - vorige, play/pauze en volgende;
-  - voortgang.
-- Vaste knoppen voor Waze/GPS, VLC, Spotify en de eigen instellingen.
-- Zes vrije app-slots:
-  - leeg slot toont `+`;
-  - tik om een geïnstalleerde app te kiezen;
-  - lang indrukken en naar de prullenbak slepen om het slot leeg te maken.
-- Eigen instellingen met een aparte knop naar de volledige Android-instellingen.
-- Optionele zwarte software-dimlaag over het volledige HDMI-beeld, inclusief Waze.
+Waze is opened once at the initial dashboard start when that preference is enabled. It is intentionally **not** reopened every time RaspiCar resumes. If the user closes Waze, the visible **Open Waze** button restores it manually.
 
-## Belangrijke beperking van Android split-screen
+Android/LineageOS remains responsible for the exact split position and ratio. The app requests Waze on the right with roughly 65% of the screen.
 
-De app gebruikt `FLAG_ACTIVITY_LAUNCH_ADJACENT` en geeft Waze rechter schermgrenzen mee. Android/LineageOS beslist uiteindelijk zelf over de vensterpositie en dividerverhouding. Wanneer LineageOS de 35/65-aanvraag negeert, sleep je de divider één keer handmatig naar de gewenste positie. Veel builds onthouden de laatste verdeling.
+## Spotify mini player
 
-Er is voor V1 geen root nodig. Wanneer KonstaKANG de adjacent-launch anders verwerkt dan standaard Android, kan in V1.1 een build-specifieke root/shell-fallback worden toegevoegd nadat we het gedrag op het echte scherm hebben gezien.
+The dashboard intentionally selects only Spotify's active Android MediaSession. VLC or another media app will not replace the Spotify controls.
 
-## Bouwen
+Notification-listener access is required so RaspiCar can read Spotify metadata and send media commands. The Spotify icon or album art can open the full Spotify app. A draggable **Dashboard** overlay button is shown so the user can return without hunting for system navigation.
 
-Gebruik Android Studio Quail 2 / 2026.1.2 of nieuwer.
+## VLC floating/Picture-in-Picture
 
-Vereisten:
+Android does not let RaspiCar directly force another app's activity into PiP. VLC must enter its own Picture-in-Picture mode.
 
-- JDK 17 of nieuwer;
-- Android SDK Platform 36;
-- Android SDK Build Tools 36.0.0;
-- internet tijdens de eerste Gradle-sync.
+Set VLC to use PiP:
 
-1. Open deze map als project in Android Studio.
-2. Laat Gradle synchroniseren.
-3. Kies **Build → Build APK(s)**.
-4. De debug-APK verschijnt onder `app/build/outputs/apk/debug/app-debug.apk`.
+1. Open VLC.
+2. Open VLC settings.
+3. Under Video / Background-PiP mode, choose Picture-in-Picture playback.
+4. From RaspiCar, tap VLC and start a video.
+5. Tap the floating **VLC zwevend** button.
+6. RaspiCar returns and VLC should remain as a movable PiP window.
 
-Het project gebruikt Android Gradle Plugin 9.2.1. Volgens de officiële compatibiliteit gebruikt AGP 9.2 standaard Gradle 9.4.1 en Build Tools 36.0.0.
+This requires Android's **Display over other apps** permission for RaspiCar. The same permission is already used by the HDMI dim overlay.
 
-## Installeren
+## Settings
 
-Via ADB:
+RaspiCar settings include:
 
-```bash
-adb install -r app-debug.apk
-```
+- Open Waze once at dashboard startup.
+- Start GPS Connector before Waze.
+- Weather enable/disable.
+- Floating return button enable/disable.
+- Dim overlay and dim percentage.
+- Overlay, media and location permissions.
+- Default Home app selection.
+- Direct button to the complete Android settings.
+- Manual **Waze now open right** action.
 
-Daarna op de Raspberry Pi:
+## Build
 
-1. Open **RaspiCar Dashboard**.
-2. Sta locatie toe.
-3. Open de gear → **Mediatoegang instellen** en schakel RaspiCar media access in.
-4. Voor HDMI-dimming: gear → **Toestemming voor dimlaag**.
-5. Gear → **Als standaard Home-app kiezen** → RaspiCar Dashboard.
-6. Controleer dat Waze, GPS Connector, VLC en Spotify geïnstalleerd zijn.
+The GitHub Actions workflow builds a debug APK and uploads it as:
 
-## Eerste autotest
+`RaspiCarDashboard-v2-debug`
 
-Controleer vooral:
+The APK inside the artifact is:
 
-- opent Waze werkelijk rechts;
-- blijft het dashboard links staan;
-- onthoudt LineageOS de dividerpositie;
-- start GPS Connector zonder vervelende zichtbare vertraging;
-- ontvangt de snelheidsmeter de mock GPS-locatie;
-- toont Spotify/VLC metadata na het geven van mediatoegang;
-- blijft de dimoverlay klik-doorlatend.
-
-## Package ID
-
-`nl.roy.raspicardashboard`
+`app-debug.apk`

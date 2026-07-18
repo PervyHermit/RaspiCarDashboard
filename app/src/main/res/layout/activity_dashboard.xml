@@ -102,7 +102,7 @@
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="58dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
@@ -110,9 +110,23 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="@string/media"
+                    android:text="SPOTIFY"
                     android:textColor="@color/accent"
                     android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/openWazeButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="42dp"
+                    android:layout_marginEnd="9dp"
+                    android:background="@drawable/small_action_bg"
+                    android:gravity="center"
+                    android:minWidth="96dp"
+                    android:paddingHorizontal="12dp"
+                    android:text="Open Waze"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -141,8 +155,8 @@
                     android:layout_width="105dp"
                     android:layout_height="105dp"
                     android:background="@drawable/card_bg_alt"
-                    android:contentDescription="Albumhoes"
-                    android:padding="12dp"
+                    android:contentDescription="Spotify albumhoes"
+                    android:padding="10dp"
                     android:scaleType="centerCrop"
                     android:src="@drawable/ic_launcher_foreground" />
 
@@ -160,7 +174,7 @@
                         android:layout_height="wrap_content"
                         android:ellipsize="end"
                         android:maxLines="1"
-                        android:text="@string/no_media"
+                        android:text="Spotify niet actief"
                         android:textColor="@color/text_primary"
                         android:textSize="20sp"
                         android:textStyle="bold" />
@@ -172,7 +186,7 @@
                         android:layout_marginTop="2dp"
                         android:ellipsize="end"
                         android:maxLines="1"
-                        android:text="Spotify, VLC of lokale speler"
+                        android:text="Tik op Spotify om muziek te kiezen"
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp" />
 
@@ -231,11 +245,11 @@
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="104dp"
+            android:layout_height="122dp"
             android:layout_marginTop="10dp"
             android:background="@drawable/card_bg"
             android:orientation="vertical"
-            android:padding="10dp">
+            android:padding="9dp">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -249,7 +263,7 @@
                 android:id="@+id/fixedAppsContainer"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_marginTop="5dp"
+                android:layout_marginTop="4dp"
                 android:layout_weight="1"
                 android:gravity="center"
                 android:orientation="horizontal" />
@@ -257,11 +271,11 @@
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="100dp"
+            android:layout_height="116dp"
             android:layout_marginTop="10dp"
             android:background="@drawable/card_bg"
             android:orientation="vertical"
-            android:padding="10dp">
+            android:padding="9dp">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -275,7 +289,7 @@
                 android:id="@+id/customAppsContainer"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_marginTop="5dp"
+                android:layout_marginTop="4dp"
                 android:layout_weight="1"
                 android:gravity="center"
                 android:orientation="horizontal" />
@@ -283,10 +297,10 @@
 
         <TextView
             android:layout_width="match_parent"
-            android:layout_height="30dp"
+            android:layout_height="24dp"
             android:gravity="center_vertical"
             android:paddingStart="7dp"
-            android:text="◉  LineageOS   •   Raspberry Pi 5"
+            android:text="◉  LineageOS   •   Raspberry Pi 5   •   V2"
             android:textColor="#628097"
             android:textSize="11sp" />
     </LinearLayout>

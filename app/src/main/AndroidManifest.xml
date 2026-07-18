@@ -71,5 +71,9 @@
             android:name=".DimOverlayService"
             android:exported="false" />
 
+        <service
+            android:name=".ExternalAppOverlayService"
+            android:exported="false" />
+
     </application>
 </manifest>

@@ -7,34 +7,60 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.EditText;
 import android.widget.SeekBar;
+import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
 public final class SettingsActivity extends Activity {
     static final String PREFS = "dashboard_prefs";
+    static final String PREF_SETUP_COMPLETE = "setup_complete";
     static final String PREF_AUTO_WAZE = "auto_waze";
     static final String PREF_START_GPS = "start_gps_connector";
     static final String PREF_WEATHER = "weather_enabled";
-    static final String PREF_DIM = "dim_enabled";
-    static final String PREF_DIM_PERCENT = "dim_percent";
     static final String PREF_EXTERNAL_RETURN_OVERLAY = "external_return_overlay";
+    static final String PREF_LAYOUT_SIZE = "layout_size";
+    static final String PREF_CAMERA_ID = "camera_id";
+    static final String PREF_CAMERA_MIRROR = "camera_mirror";
+    static final String PREF_CAMERA_ROTATION = "camera_rotation";
+    static final String PREF_DIM_MODE = "dim_mode";
+    static final String PREF_DIM_PERCENT = "dim_percent";
+    static final String PREF_DIM_DAY_PERCENT = "dim_day_percent";
+    static final String PREF_DIM_NIGHT_PERCENT = "dim_night_percent";
+    static final String PREF_DIM_SUN_OFFSET = "dim_sun_offset";
+    static final String PREF_LAST_LATITUDE = "last_latitude";
+    static final String PREF_LAST_LONGITUDE = "last_longitude";
 
-    private static final String VLC_PACKAGE = "org.videolan.vlc";
+    static final String DIM_MODE_OFF = "off";
+    static final String DIM_MODE_MANUAL = "manual";
+    static final String DIM_MODE_AUTO = "auto";
 
     private SharedPreferences prefs;
     private Switch autoWazeSwitch;
     private Switch startGpsSwitch;
     private Switch weatherSwitch;
     private Switch externalReturnSwitch;
-    private Switch dimSwitch;
-    private SeekBar dimSeek;
+    private Spinner layoutSpinner;
+    private Spinner themeSpinner;
+    private Spinner dimModeSpinner;
+    private SeekBar manualDimSeek;
+    private SeekBar dayDimSeek;
+    private SeekBar nightDimSeek;
+    private SeekBar sunOffsetSeek;
+    private TextView manualDimLabel;
+    private TextView dayDimLabel;
+    private TextView nightDimLabel;
+    private TextView sunOffsetLabel;
+    private TextView cameraSelectionText;
     private TextView statusText;
+    private EditText customAccentInput;
+    private boolean binding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,145 +68,223 @@ public final class SettingsActivity extends Activity {
         setContentView(R.layout.activity_settings);
         hideSystemBars();
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        migrateLegacyPreferences(prefs);
+        bindViews();
+        configureSpinners();
+        loadValues();
+        configureListeners();
+        ThemeManager.apply(this);
+        refreshLabels();
+        refreshStatus();
+    }
 
+
+    static void migrateLegacyPreferences(SharedPreferences prefs) {
+        if (prefs.contains(PREF_DIM_MODE)) return;
+        boolean legacyEnabled = prefs.getBoolean("dim_enabled", false);
+        prefs.edit().putString(PREF_DIM_MODE, legacyEnabled ? DIM_MODE_MANUAL : DIM_MODE_OFF).apply();
+    }
+
+    private void bindViews() {
         autoWazeSwitch = findViewById(R.id.autoWazeSwitch);
         startGpsSwitch = findViewById(R.id.startGpsSwitch);
         weatherSwitch = findViewById(R.id.weatherSwitch);
         externalReturnSwitch = findViewById(R.id.externalReturnSwitch);
-        dimSwitch = findViewById(R.id.dimSwitch);
-        dimSeek = findViewById(R.id.dimSeek);
+        layoutSpinner = findViewById(R.id.layoutSpinner);
+        themeSpinner = findViewById(R.id.themeSpinner);
+        dimModeSpinner = findViewById(R.id.dimModeSpinner);
+        manualDimSeek = findViewById(R.id.manualDimSeek);
+        dayDimSeek = findViewById(R.id.dayDimSeek);
+        nightDimSeek = findViewById(R.id.nightDimSeek);
+        sunOffsetSeek = findViewById(R.id.sunOffsetSeek);
+        manualDimLabel = findViewById(R.id.manualDimLabel);
+        dayDimLabel = findViewById(R.id.dayDimLabel);
+        nightDimLabel = findViewById(R.id.nightDimLabel);
+        sunOffsetLabel = findViewById(R.id.sunOffsetLabel);
+        cameraSelectionText = findViewById(R.id.cameraSelectionText);
         statusText = findViewById(R.id.statusText);
+        customAccentInput = findViewById(R.id.customAccentInput);
+    }
 
+    private void configureSpinners() {
+        layoutSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
+                new String[]{"Layout: automatisch", "Layout: compact", "Layout: medium", "Layout: large"}));
+        themeSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
+                new String[]{"Thema: Dark Blue", "Thema: Graphite", "Thema: Orange", "Thema: Green",
+                        "Thema: Red", "Thema: Purple", "Thema: eigen accent"}));
+        dimModeSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
+                new String[]{"Dimmen: uit", "Dimmen: handmatig", "Dimmen: automatisch op zon"}));
+    }
+
+    private void loadValues() {
+        binding = true;
         autoWazeSwitch.setChecked(prefs.getBoolean(PREF_AUTO_WAZE, true));
         startGpsSwitch.setChecked(prefs.getBoolean(PREF_START_GPS, true));
         weatherSwitch.setChecked(prefs.getBoolean(PREF_WEATHER, true));
         externalReturnSwitch.setChecked(prefs.getBoolean(PREF_EXTERNAL_RETURN_OVERLAY, true));
-        dimSwitch.setChecked(prefs.getBoolean(PREF_DIM, false));
-        dimSeek.setProgress(prefs.getInt(PREF_DIM_PERCENT, 35));
+        layoutSpinner.setSelection(layoutIndex(prefs.getString(PREF_LAYOUT_SIZE, "auto")));
+        themeSpinner.setSelection(themeIndex(prefs.getString(ThemeManager.PREF_THEME, ThemeManager.THEME_BLUE)));
+        dimModeSpinner.setSelection(dimModeIndex(prefs.getString(PREF_DIM_MODE, DIM_MODE_OFF)));
+        manualDimSeek.setProgress(prefs.getInt(PREF_DIM_PERCENT, 35));
+        dayDimSeek.setProgress(prefs.getInt(PREF_DIM_DAY_PERCENT, 0));
+        nightDimSeek.setProgress(prefs.getInt(PREF_DIM_NIGHT_PERCENT, 45));
+        sunOffsetSeek.setProgress(prefs.getInt(PREF_DIM_SUN_OFFSET, 0) + 120);
+        customAccentInput.setText(prefs.getString(ThemeManager.PREF_CUSTOM_ACCENT, "#2A92FF"));
+        binding = false;
+    }
 
+    private void configureListeners() {
         autoWazeSwitch.setOnCheckedChangeListener((button, checked) ->
                 prefs.edit().putBoolean(PREF_AUTO_WAZE, checked).apply());
         startGpsSwitch.setOnCheckedChangeListener((button, checked) ->
                 prefs.edit().putBoolean(PREF_START_GPS, checked).apply());
         weatherSwitch.setOnCheckedChangeListener((button, checked) ->
                 prefs.edit().putBoolean(PREF_WEATHER, checked).apply());
-
         externalReturnSwitch.setOnCheckedChangeListener((button, checked) -> {
+            if (binding) return;
             if (checked && !Settings.canDrawOverlays(this)) {
                 button.setChecked(false);
                 openOverlayPermission();
                 return;
             }
             prefs.edit().putBoolean(PREF_EXTERNAL_RETURN_OVERLAY, checked).apply();
-            if (!checked) {
-                stopService(new Intent(this, ExternalAppOverlayService.class)
-                        .setAction(ExternalAppOverlayService.ACTION_STOP));
-            }
+            if (!checked) stopService(new Intent(this, ExternalAppOverlayService.class)
+                    .setAction(ExternalAppOverlayService.ACTION_STOP));
             refreshStatus();
         });
 
-        dimSwitch.setOnCheckedChangeListener((button, checked) -> {
-            prefs.edit().putBoolean(PREF_DIM, checked).apply();
-            if (checked) {
-                if (!Settings.canDrawOverlays(this)) {
-                    button.setChecked(false);
-                    openOverlayPermission();
-                } else {
-                    updateDimOverlay();
-                }
-            } else {
-                stopDimOverlay();
-            }
-            refreshStatus();
-        });
+        layoutSpinner.setOnItemSelectedListener(new SelectionListener(position -> {
+            if (binding) return;
+            prefs.edit().putString(PREF_LAYOUT_SIZE,
+                    new String[]{"auto", "compact", "medium", "large"}[position]).apply();
+        }));
+        themeSpinner.setOnItemSelectedListener(new SelectionListener(position -> {
+            if (binding) return;
+            String[] themes = {ThemeManager.THEME_BLUE, ThemeManager.THEME_GRAPHITE,
+                    ThemeManager.THEME_ORANGE, ThemeManager.THEME_GREEN, ThemeManager.THEME_RED,
+                    ThemeManager.THEME_PURPLE, ThemeManager.THEME_CUSTOM};
+            prefs.edit().putString(ThemeManager.PREF_THEME, themes[position]).apply();
+            ThemeManager.apply(this);
+        }));
+        dimModeSpinner.setOnItemSelectedListener(new SelectionListener(position -> {
+            if (binding) return;
+            prefs.edit().putString(PREF_DIM_MODE,
+                    new String[]{DIM_MODE_OFF, DIM_MODE_MANUAL, DIM_MODE_AUTO}[position]).apply();
+            updateDimOverlay();
+            refreshLabels();
+        }));
 
-        dimSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                prefs.edit().putInt(PREF_DIM_PERCENT, progress).apply();
-                if (dimSwitch.isChecked() && Settings.canDrawOverlays(SettingsActivity.this)) {
-                    updateDimOverlay();
-                }
+        manualDimSeek.setOnSeekBarChangeListener(seekListener(PREF_DIM_PERCENT));
+        dayDimSeek.setOnSeekBarChangeListener(seekListener(PREF_DIM_DAY_PERCENT));
+        nightDimSeek.setOnSeekBarChangeListener(seekListener(PREF_DIM_NIGHT_PERCENT));
+        sunOffsetSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                prefs.edit().putInt(PREF_DIM_SUN_OFFSET, progress - 120).apply();
+                refreshLabels();
+                updateDimOverlay();
             }
-
             @Override public void onStartTrackingTouch(SeekBar seekBar) { }
             @Override public void onStopTrackingTouch(SeekBar seekBar) { }
         });
 
-        findViewById(R.id.vlcSettingsButton).setOnClickListener(v -> openVlcForPipSetup());
+        findViewById(R.id.applyAccentButton).setOnClickListener(v -> applyCustomAccent());
+        findViewById(R.id.cameraSettingsButton).setOnClickListener(v ->
+                startActivity(new Intent(this, CameraSelectionActivity.class)));
         findViewById(R.id.overlayPermissionButton).setOnClickListener(v -> openOverlayPermission());
         findViewById(R.id.mediaPermissionButton).setOnClickListener(v -> {
-            try {
-                startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS));
-            } catch (RuntimeException e) {
-                startActivity(new Intent(Settings.ACTION_SETTINGS));
-            }
+            try { startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)); }
+            catch (RuntimeException e) { startActivity(new Intent(Settings.ACTION_SETTINGS)); }
         });
         findViewById(R.id.locationPermissionButton).setOnClickListener(v -> requestPermissions(
                 new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 77));
+        findViewById(R.id.cameraPermissionButton).setOnClickListener(v -> requestPermissions(
+                new String[]{Manifest.permission.CAMERA}, 78));
         findViewById(R.id.homeSettingsButton).setOnClickListener(v -> {
-            try {
-                startActivity(new Intent(Settings.ACTION_HOME_SETTINGS));
-            } catch (RuntimeException e) {
-                startActivity(new Intent(Settings.ACTION_SETTINGS));
-            }
+            try { startActivity(new Intent(Settings.ACTION_HOME_SETTINGS)); }
+            catch (RuntimeException e) { startActivity(new Intent(Settings.ACTION_SETTINGS)); }
         });
         findViewById(R.id.androidSettingsButton).setOnClickListener(v ->
                 startActivity(new Intent(Settings.ACTION_SETTINGS)));
         findViewById(R.id.testSplitButton).setOnClickListener(v -> {
-            Intent dashboard = new Intent(this, DashboardActivity.class)
+            startActivity(new Intent(this, DashboardActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    .putExtra(DashboardActivity.EXTRA_FORCE_SPLIT, true);
-            startActivity(dashboard);
+                    .putExtra(DashboardActivity.EXTRA_FORCE_SPLIT, true));
             finish();
         });
+        findViewById(R.id.rerunSetupButton).setOnClickListener(v -> {
+            prefs.edit().putBoolean(PREF_SETUP_COMPLETE, false).apply();
+            startActivity(new Intent(this, SetupActivity.class));
+            finish();
+        });
+    }
 
-        refreshStatus();
+    private SeekBar.OnSeekBarChangeListener seekListener(String preference) {
+        return new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                prefs.edit().putInt(preference, progress).apply();
+                refreshLabels();
+                updateDimOverlay();
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) { }
+            @Override public void onStopTrackingTouch(SeekBar seekBar) { }
+        };
+    }
+
+    private void applyCustomAccent() {
+        String value = customAccentInput.getText().toString().trim();
+        int parsed = ThemeManager.parseAccent(value);
+        String normalized = ThemeManager.colorToHex(parsed);
+        customAccentInput.setText(normalized);
+        prefs.edit()
+                .putString(ThemeManager.PREF_CUSTOM_ACCENT, normalized)
+                .putString(ThemeManager.PREF_THEME, ThemeManager.THEME_CUSTOM)
+                .apply();
+        binding = true;
+        themeSpinner.setSelection(6);
+        binding = false;
+        ThemeManager.apply(this);
+        Toast.makeText(this, "Accentkleur toegepast", Toast.LENGTH_SHORT).show();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         hideSystemBars();
+        ThemeManager.apply(this);
+        refreshLabels();
         refreshStatus();
+        binding = true;
         externalReturnSwitch.setChecked(prefs.getBoolean(PREF_EXTERNAL_RETURN_OVERLAY, true)
                 && Settings.canDrawOverlays(this));
-        if (prefs.getBoolean(PREF_DIM, false) && Settings.canDrawOverlays(this)) {
-            dimSwitch.setChecked(true);
-            updateDimOverlay();
-        }
-    }
-
-    private void openVlcForPipSetup() {
-        Intent launch = getPackageManager().getLaunchIntentForPackage(VLC_PACKAGE);
-        if (launch == null) {
-            Toast.makeText(this, "VLC is niet geïnstalleerd", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        Toast.makeText(this,
-                "Ga in VLC naar Instellingen → Video → Achtergrond/PiP en kies Picture-in-Picture.",
-                Toast.LENGTH_LONG).show();
-        launch.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-        startActivity(launch);
+        binding = false;
+        updateDimOverlay();
     }
 
     private void openOverlayPermission() {
-        Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:" + getPackageName()));
-        startActivity(intent);
+        startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:" + getPackageName())));
     }
 
     private void updateDimOverlay() {
-        Intent intent = new Intent(this, DimOverlayService.class)
-                .setAction(DimOverlayService.ACTION_UPDATE)
-                .putExtra(DimOverlayService.EXTRA_PERCENT, dimSeek.getProgress());
-        startService(intent);
+        String mode = prefs.getString(PREF_DIM_MODE, DIM_MODE_OFF);
+        if (DIM_MODE_OFF.equals(mode)) {
+            startService(new Intent(this, DimOverlayService.class).setAction(DimOverlayService.ACTION_STOP));
+            return;
+        }
+        if (!Settings.canDrawOverlays(this)) return;
+        startService(new Intent(this, DimOverlayService.class).setAction(DimOverlayService.ACTION_UPDATE));
     }
 
-    private void stopDimOverlay() {
-        Intent intent = new Intent(this, DimOverlayService.class)
-                .setAction(DimOverlayService.ACTION_STOP);
-        startService(intent);
+    private void refreshLabels() {
+        manualDimLabel.setText("Handmatig dimniveau: " + manualDimSeek.getProgress() + "%");
+        dayDimLabel.setText("Automatisch overdag: " + dayDimSeek.getProgress() + "%");
+        nightDimLabel.setText("Automatisch ’s nachts: " + nightDimSeek.getProgress() + "%");
+        int offset = sunOffsetSeek.getProgress() - 120;
+        sunOffsetLabel.setText("Zonmoment verschuiven: " + (offset > 0 ? "+" : "") + offset + " minuten");
+        String id = prefs.getString(PREF_CAMERA_ID, null);
+        cameraSelectionText.setText(id == null ? "Nog geen camera gekozen" : "Gekozen camera: " + id
+                + (prefs.getBoolean(PREF_CAMERA_MIRROR, false) ? " • gespiegeld" : "")
+                + " • " + prefs.getInt(PREF_CAMERA_ROTATION, 0) + "°");
     }
 
     private void refreshStatus() {
@@ -188,11 +292,13 @@ public final class SettingsActivity extends Activity {
         StringBuilder status = new StringBuilder();
         status.append("Waze: ").append(isInstalled("com.waze") ? "gevonden" : "niet gevonden").append('\n');
         status.append("GPS Connector: ").append(isInstalled("de.pilablu.gpsconnector") ? "gevonden" : "niet gevonden").append('\n');
-        status.append("VLC: ").append(isInstalled(VLC_PACKAGE) ? "gevonden" : "niet gevonden").append('\n');
         status.append("Spotify: ").append(isInstalled("com.spotify.music") ? "gevonden" : "niet gevonden").append('\n');
+        status.append("Camera gekozen: ").append(prefs.getString(PREF_CAMERA_ID, null) != null ? "ja" : "nog kiezen").append('\n');
         status.append("Mediatoegang: ").append(hasNotificationAccess() ? "toegestaan" : "nog toestaan").append('\n');
         status.append("Locatie: ").append(checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-                        == PackageManager.PERMISSION_GRANTED ? "toegestaan" : "nog toestaan").append('\n');
+                == PackageManager.PERMISSION_GRANTED ? "toegestaan" : "nog toestaan").append('\n');
+        status.append("Camera: ").append(checkSelfPermission(Manifest.permission.CAMERA)
+                == PackageManager.PERMISSION_GRANTED ? "toegestaan" : "nog toestaan").append('\n');
         status.append("Overlay: ").append(Settings.canDrawOverlays(this) ? "toegestaan" : "nog toestaan");
         statusText.setText(status.toString());
     }
@@ -205,26 +311,47 @@ public final class SettingsActivity extends Activity {
     }
 
     private boolean isInstalled(String packageName) {
-        try {
-            if (Build.VERSION.SDK_INT >= 33) {
-                getPackageManager().getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0));
-            } else {
-                //noinspection deprecation
-                getPackageManager().getPackageInfo(packageName, 0);
-            }
-            return true;
-        } catch (PackageManager.NameNotFoundException e) {
-            return false;
-        }
+        try { getPackageManager().getApplicationInfo(packageName, 0); return true; }
+        catch (PackageManager.NameNotFoundException e) { return false; }
+    }
+
+    private int layoutIndex(String value) {
+        if ("compact".equals(value)) return 1;
+        if ("medium".equals(value)) return 2;
+        if ("large".equals(value)) return 3;
+        return 0;
+    }
+
+    private int themeIndex(String value) {
+        if (ThemeManager.THEME_GRAPHITE.equals(value)) return 1;
+        if (ThemeManager.THEME_ORANGE.equals(value)) return 2;
+        if (ThemeManager.THEME_GREEN.equals(value)) return 3;
+        if (ThemeManager.THEME_RED.equals(value)) return 4;
+        if (ThemeManager.THEME_PURPLE.equals(value)) return 5;
+        if (ThemeManager.THEME_CUSTOM.equals(value)) return 6;
+        return 0;
+    }
+
+    private int dimModeIndex(String value) {
+        if (DIM_MODE_MANUAL.equals(value)) return 1;
+        if (DIM_MODE_AUTO.equals(value)) return 2;
+        return 0;
     }
 
     private void hideSystemBars() {
         getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                        | View.SYSTEM_UI_FLAG_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+    }
+
+    private static final class SelectionListener implements android.widget.AdapterView.OnItemSelectedListener {
+        interface Callback { void selected(int position); }
+        private final Callback callback;
+        SelectionListener(Callback callback) { this.callback = callback; }
+        @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+            callback.selected(position);
+        }
+        @Override public void onNothingSelected(android.widget.AdapterView<?> parent) { }
     }
 }

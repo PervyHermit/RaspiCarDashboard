@@ -1,46 +1,28 @@
-.github/workflows/build-apk.yml	1186 bytes
-.gitignore	87 bytes
-BUILD_WITH_GITHUB.md	1086 bytes
-CHANGELOG.md	1192 bytes
-LICENSE	1060 bytes
-README.md	2512 bytes
-SOURCE_AUDIT.md	493 bytes
-V2_UPDATE_GUIDE.md	1219 bytes
-app/build.gradle	603 bytes
-app/proguard-rules.pro	0 bytes
-app/src/main/AndroidManifest.xml	3165 bytes
-app/src/main/java/nl/roy/raspicardashboard/AppPickerActivity.java	6313 bytes
-app/src/main/java/nl/roy/raspicardashboard/DashboardActivity.java	34365 bytes
-app/src/main/java/nl/roy/raspicardashboard/DimOverlayService.java	2889 bytes
-app/src/main/java/nl/roy/raspicardashboard/ExternalAppOverlayService.java	5618 bytes
-app/src/main/java/nl/roy/raspicardashboard/MediaNotificationListener.java	344 bytes
-app/src/main/java/nl/roy/raspicardashboard/SettingsActivity.java	10274 bytes
-app/src/main/res/drawable/card_bg.xml	242 bytes
-app/src/main/res/drawable/card_bg_alt.xml	187 bytes
-app/src/main/res/drawable/circle_accent.xml	200 bytes
-app/src/main/res/drawable/circle_button.xml	313 bytes
-app/src/main/res/drawable/floating_return_bg.xml	601 bytes
-app/src/main/res/drawable/ic_launcher_background.xml	133 bytes
-app/src/main/res/drawable/ic_launcher_foreground.xml	437 bytes
-app/src/main/res/drawable/ic_launcher_legacy.xml	435 bytes
-app/src/main/res/drawable/ic_plus.xml	278 bytes
-app/src/main/res/drawable/ic_settings.xml	1051 bytes
-app/src/main/res/drawable/progress_bg.xml	383 bytes
-app/src/main/res/drawable/slot_bg.xml	443 bytes
-app/src/main/res/drawable/small_action_bg.xml	532 bytes
-app/src/main/res/drawable/trash_bg.xml	178 bytes
-app/src/main/res/layout/activity_app_picker.xml	1144 bytes
-app/src/main/res/layout/activity_dashboard.xml	13400 bytes
-app/src/main/res/layout/activity_settings.xml	7344 bytes
-app/src/main/res/mipmap-anydpi/ic_launcher.xml	435 bytes
-app/src/main/res/mipmap-anydpi/ic_launcher_round.xml	435 bytes
-app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml	234 bytes
-app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml	234 bytes
-app/src/main/res/values/colors.xml	372 bytes
-app/src/main/res/values/strings.xml	454 bytes
-app/src/main/res/values/themes.xml	545 bytes
-build.gradle	73 bytes
-docs/design-reference.png	1562261 bytes
-gradle.properties	110 bytes
-local.properties.example	101 bytes
-settings.gradle	336 bytes
+RaspiCar Dashboard V3 project contents
+
+.github/workflows/build-apk.yml
+app/build.gradle
+app/src/main/AndroidManifest.xml
+app/src/main/java/nl/roy/raspicardashboard/AppPickerActivity.java
+app/src/main/java/nl/roy/raspicardashboard/CameraPreviewController.java
+app/src/main/java/nl/roy/raspicardashboard/CameraSelectionActivity.java
+app/src/main/java/nl/roy/raspicardashboard/DashboardActivity.java
+app/src/main/java/nl/roy/raspicardashboard/DimOverlayService.java
+app/src/main/java/nl/roy/raspicardashboard/ExternalAppOverlayService.java
+app/src/main/java/nl/roy/raspicardashboard/MediaNotificationListener.java
+app/src/main/java/nl/roy/raspicardashboard/SettingsActivity.java
+app/src/main/java/nl/roy/raspicardashboard/SetupActivity.java
+app/src/main/java/nl/roy/raspicardashboard/SunCalculator.java
+app/src/main/java/nl/roy/raspicardashboard/ThemeManager.java
+app/src/main/res/layout/activity_app_picker.xml
+app/src/main/res/layout/activity_camera_selection.xml
+app/src/main/res/layout/activity_dashboard.xml
+app/src/main/res/layout/activity_settings.xml
+app/src/main/res/layout/activity_setup.xml
+docs/v3-dashboard.png
+README.md
+CHANGELOG.md
+BUILD_WITH_GITHUB.md
+SIGNING_WITH_GITHUB.md
+V3_UPDATE_GUIDE.md
+SOURCE_AUDIT.md

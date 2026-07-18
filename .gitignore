@@ -6,3 +6,9 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
+
+# Private signing material — keep outside the public repository
+*.jks
+*.keystore
+RASPI_KEYSTORE_BASE64.txt
+SIGNING_CREDENTIALS.txt

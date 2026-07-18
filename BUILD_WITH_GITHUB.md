@@ -1,19 +1,19 @@
-# V2 APK bouwen via GitHub Actions
+# Build V3 with GitHub Actions
 
-1. Kopieer de volledige inhoud van deze V2-projectmap over je lokale `RaspiCarDashboard` repository.
-2. Controleer dat `.github`, `app` en `docs` nog aanwezig zijn.
-3. Open GitHub Desktop.
-4. Commit bijvoorbeeld met: `RaspiCar Dashboard V2`.
-5. Klik **Push origin**.
-6. Open de repository op GitHub en ga naar **Actions**.
-7. Open de nieuwe groene workflow-run **Build debug APK**.
-8. Download onder **Artifacts**: `RaspiCarDashboard-v2-debug`.
-9. Pak het artifact uit; daarin staat `app-debug.apk`.
+1. Copy the complete V3 update into the local `RaspiCarDashboard` repository.
+2. Commit and push the changed files with GitHub Desktop.
+3. Open the repository on GitHub.
+4. Open **Actions**.
+5. Select **Build debug APK**.
+6. Open the newest green workflow run.
+7. Download the artifact **RaspiCarDashboard-v3-debug**.
+8. Extract the artifact zip.
+9. Install `app-debug.apk` on the Android device.
 
-De workflow draait automatisch bij iedere push naar `main` of `master`.
+## Signing
 
-## Let op bij installeren over V1
+Without signing secrets, GitHub builds a normal temporary debug APK. A later workflow run may use a different certificate and Android may refuse it as an update.
 
-GitHub-hosted runners kunnen voor debug-builds een nieuwe debug signing key gebruiken. Android kan daarom melden dat V2 niet over V1 kan worden geïnstalleerd. In dat geval moet V1 eerst worden verwijderd. Daardoor worden de zes ingestelde app-slots en andere lokale voorkeuren gewist.
+For repeatable updates, configure the four signing secrets described in `SIGNING_WITH_GITHUB.md` before building V3.
 
-Voor latere versies is een vaste persoonlijke signing key via GitHub Secrets aan te raden, zodat updates zonder verwijderen kunnen worden geïnstalleerd.
+V2 used a different temporary debug certificate. Uninstall V2 before installing the persistently signed V3 APK.

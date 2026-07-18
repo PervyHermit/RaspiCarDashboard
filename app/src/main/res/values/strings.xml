@@ -1,10 +1,10 @@
 <resources>
     <string name="app_name">RaspiCar Dashboard</string>
     <string name="media">SPOTIFY</string>
-    <string name="apps">APPS</string>
+    <string name="apps">BENODIGDE APPS</string>
     <string name="custom_apps">SNELKOPPELINGEN</string>
     <string name="no_media">Spotify niet actief</string>
-    <string name="tap_for_media_access">Tik om mediatoegang te geven</string>
+    <string name="tap_for_media_access">Tik om Spotify-mediatoegang te geven</string>
     <string name="weather_waiting">--°C</string>
     <string name="speed_format">%1$d\nkm/u</string>
 </resources>

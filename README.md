@@ -1,64 +1,131 @@
-# RaspiCar Dashboard V2
+# RaspiCar Dashboard V3
 
-Custom landscape launcher/dashboard for a Raspberry Pi 5 running LineageOS on a 1280×800 HDMI touchscreen.
+Custom landscape launcher/dashboard for a Raspberry Pi 5 running LineageOS, designed around a 1280×800 HDMI touchscreen but now adaptable to smaller and larger Android windows.
 
-## V2 layout
+![RaspiCar Dashboard V3 preview](docs/v3-dashboard.png)
+
+> The large content card switches between **Spotify mode** and **Camera mode**. The preview above shows the V3 visual direction; the live camera replaces the Spotify controls when Camera is selected.
+
+## V3 dashboard
 
 - RaspiCar dashboard on the left.
 - Waze requested on the right in Android split-screen.
+- Time, date, current weather and GPS speed.
 - Spotify-focused mini player with album art, title, artist, progress and previous/play/next controls.
-- Current speed, time, date and weather.
-- Fixed buttons for Waze/GPS, VLC, Spotify and RaspiCar settings.
-- Six user-configurable shortcut slots.
-- Larger icon windows to avoid the clipping seen in V1.
+- Embedded Android Camera2 preview for a built-in or USB camera exposed by LineageOS.
+- Fixed buttons for GPS Connector, Camera, Spotify and RaspiCar settings.
+- Five user-configurable shortcut slots plus a permanent **Apps** button.
+- Full app drawer containing installed launchable apps.
+- Compact, Medium, Large and automatic layout profiles.
+- Dark Blue, Graphite, Orange, Green, Red, Purple and custom accent themes.
+- Manual or automatic sun-based dim overlay.
+- First-run setup wizard.
 
-## Waze behavior
+## Waze behaviour
 
-Waze is opened once at the initial dashboard start when that preference is enabled. It is intentionally **not** reopened every time RaspiCar resumes. If the user closes Waze, the visible **Open Waze** button restores it manually.
+Waze can open once when the dashboard starts. It is intentionally **not** forced back every time RaspiCar resumes.
 
-Android/LineageOS remains responsible for the exact split position and ratio. The app requests Waze on the right with roughly 65% of the screen.
+If the user closes Waze, it remains closed. The visible **Open Waze** button restores it manually.
+
+Android/LineageOS remains responsible for the final split position and ratio. RaspiCar requests Waze on the right with roughly 65% of the display.
 
 ## Spotify mini player
 
-The dashboard intentionally selects only Spotify's active Android MediaSession. VLC or another media app will not replace the Spotify controls.
+RaspiCar intentionally follows only Spotify's active Android MediaSession. Other media apps do not replace the dashboard controls.
 
-Notification-listener access is required so RaspiCar can read Spotify metadata and send media commands. The Spotify icon or album art can open the full Spotify app. A draggable **Dashboard** overlay button is shown so the user can return without hunting for system navigation.
+Notification-listener access is required for:
 
-## VLC floating/Picture-in-Picture
+- title and artist;
+- album art;
+- progress;
+- play/pause;
+- previous/next.
 
-Android does not let RaspiCar directly force another app's activity into PiP. VLC must enter its own Picture-in-Picture mode.
+The Spotify button opens the full Spotify app when the user needs to choose music. A draggable return overlay can bring RaspiCar back to the left pane.
 
-Set VLC to use PiP:
+## Embedded USB camera
 
-1. Open VLC.
-2. Open VLC settings.
-3. Under Video / Background-PiP mode, choose Picture-in-Picture playback.
-4. From RaspiCar, tap VLC and start a video.
-5. Tap the floating **VLC zwevend** button.
-6. RaspiCar returns and VLC should remain as a movable PiP window.
+Camera mode uses Android Camera2 directly. If LineageOS exposes the USB camera to the normal Android Camera app, it should also appear in RaspiCar's camera selector.
 
-This requires Android's **Display over other apps** permission for RaspiCar. The same permission is already used by the HDMI dim overlay.
+Camera settings include:
 
-## Settings
+- camera selection with live preview;
+- mirror image on/off;
+- rotation 0°, 90°, 180° or 270°.
 
-RaspiCar settings include:
+The camera is opened only while Camera mode is active. Returning to Spotify releases it.
 
-- Open Waze once at dashboard startup.
-- Start GPS Connector before Waze.
-- Weather enable/disable.
-- Floating return button enable/disable.
-- Dim overlay and dim percentage.
-- Overlay, media and location permissions.
-- Default Home app selection.
-- Direct button to the complete Android settings.
-- Manual **Waze now open right** action.
+## Automatic dimming
 
-## Build
+Dimming has three modes:
 
-The GitHub Actions workflow builds a debug APK and uploads it as:
+- **Off**
+- **Manual** — one fixed percentage
+- **Automatic** — day and night percentages based on sunrise and sunset at the last known GPS location
 
-`RaspiCarDashboard-v2-debug`
+The sun calculation works offline after a location has been received. A configurable offset can move the sunrise/sunset switch earlier or later.
+
+Because the display is connected through HDMI, this remains a touch-through software overlay. It darkens the rendered image but does not reduce the physical backlight power.
+
+## Adaptive layouts
+
+The dashboard can use:
+
+- **Automatic** — chosen from the current Android app-window size
+- **Compact** — phones and short landscape windows
+- **Medium** — the normal Raspberry Pi split pane
+- **Large** — tablets or larger dashboard panes
+
+This is based on the current app window, not only the physical screen resolution, so split-screen sizing is taken into account.
+
+## First-run setup
+
+V3 opens a setup sequence for:
+
+1. Waze, GPS Connector and Spotify checks.
+2. Location, camera, media and overlay permissions.
+3. USB-camera selection and preview.
+4. Layout and colour theme.
+5. Waze split-screen test.
+6. Default Home-app selection.
+7. Final status summary.
+
+The setup can be run again from RaspiCar settings.
+
+## Permissions
+
+RaspiCar may request:
+
+- precise location for speed, weather and sun times;
+- camera for the embedded preview;
+- notification-listener access for Spotify;
+- display-over-other-apps for the dim layer and return button.
+
+On sideloaded APKs, Android may block special access until **Allow restricted settings** is enabled from the app-info menu.
+
+## Building with GitHub Actions
+
+The workflow builds:
+
+`RaspiCarDashboard-v3-debug`
 
 The APK inside the artifact is:
 
 `app-debug.apk`
+
+See [BUILD_WITH_GITHUB.md](BUILD_WITH_GITHUB.md).
+
+## Persistent signing
+
+GitHub-hosted runners normally create a new temporary debug certificate. APKs signed by different certificates cannot update each other.
+
+V3 supports optional persistent signing through these repository secrets:
+
+- `RASPI_KEYSTORE_BASE64`
+- `RASPI_KEYSTORE_PASSWORD`
+- `RASPI_KEY_ALIAS`
+- `RASPI_KEY_PASSWORD`
+
+See [SIGNING_WITH_GITHUB.md](SIGNING_WITH_GITHUB.md).
+
+The V2 test APK was signed with a different temporary debug key. V2 will normally need to be uninstalled once before installing the persistently signed V3 build. Back up or note your shortcut choices first.

@@ -12,10 +12,7 @@ import android.view.WindowManager;
 import android.widget.TextView;
 
 /**
- * Small draggable return button shown above Spotify or VLC.
- *
- * For VLC this also provides the hand-off that lets VLC enter its own
- * Picture-in-Picture mode when VLC's Background/PiP preference is enabled.
+ * Small draggable return button shown above Spotify so the dashboard can be restored.
  */
 public final class ExternalAppOverlayService extends Service {
     public static final String ACTION_SHOW = "nl.roy.raspicardashboard.EXTERNAL_OVERLAY_SHOW";

@@ -29,6 +29,7 @@ import java.util.Locale;
 
 public final class AppPickerActivity extends Activity {
     public static final String EXTRA_PACKAGE = "package";
+    public static final String EXTRA_LAUNCH_MODE = "launch_mode";
 
     private final List<AppEntry> allApps = new ArrayList<>();
     private final List<AppEntry> visibleApps = new ArrayList<>();
@@ -39,16 +40,25 @@ public final class AppPickerActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_app_picker);
         hideSystemBars();
+        ThemeManager.apply(this);
 
         ListView listView = findViewById(R.id.appList);
         EditText search = findViewById(R.id.searchInput);
+        boolean launchMode = getIntent().getBooleanExtra(EXTRA_LAUNCH_MODE, false);
+        TextView title = findViewById(R.id.pickerTitle);
+        title.setText(launchMode ? "Alle apps" : "Kies een snelkoppeling");
         loadApps();
         adapter = new AppAdapter();
         listView.setAdapter(adapter);
         listView.setOnItemClickListener((parent, view, position, id) -> {
             AppEntry entry = visibleApps.get(position);
-            Intent result = new Intent().putExtra(EXTRA_PACKAGE, entry.packageName);
-            setResult(RESULT_OK, result);
+            if (launchMode) {
+                Intent launch = getPackageManager().getLaunchIntentForPackage(entry.packageName);
+                if (launch != null) startActivity(launch);
+            } else {
+                Intent result = new Intent().putExtra(EXTRA_PACKAGE, entry.packageName);
+                setResult(RESULT_OK, result);
+            }
             finish();
         });
 

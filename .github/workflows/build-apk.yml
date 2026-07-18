@@ -10,6 +10,9 @@ on:
 permissions:
   contents: read
 
+env:
+  RASPI_KEYSTORE_BASE64: ${{ secrets.RASPI_KEYSTORE_BASE64 }}
+
 jobs:
   build:
     name: Build Android debug APK
@@ -36,7 +39,21 @@ jobs:
         with:
           gradle-version: "9.4.1"
 
+      - name: Prepare persistent signing key
+        id: signing
+        if: env.RASPI_KEYSTORE_BASE64 != ''
+        shell: bash
+        run: |
+          KEYSTORE_PATH="$RUNNER_TEMP/raspicar-signing.jks"
+          printf '%s' "$RASPI_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          echo "path=$KEYSTORE_PATH" >> "$GITHUB_OUTPUT"
+
       - name: Build debug APK
+        env:
+          RASPI_KEYSTORE_PATH: ${{ steps.signing.outputs.path }}
+          RASPI_KEYSTORE_PASSWORD: ${{ secrets.RASPI_KEYSTORE_PASSWORD }}
+          RASPI_KEY_ALIAS: ${{ secrets.RASPI_KEY_ALIAS }}
+          RASPI_KEY_PASSWORD: ${{ secrets.RASPI_KEY_PASSWORD }}
         run: gradle --no-daemon assembleDebug --stacktrace
 
       - name: Verify APK exists
@@ -45,7 +62,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: RaspiCarDashboard-v2-debug
+          name: RaspiCarDashboard-v3-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14

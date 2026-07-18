@@ -1,20 +1,32 @@
 # Changelog
 
-## V2 — Spotify/PiP workflow and layout update
+## V3 — 3.0.0
 
-- Media widget now deliberately targets Spotify only, so VLC playback cannot take over the dashboard controls.
-- Added a visible **Open Waze** button inside the dashboard.
-- Waze opens once when the dashboard starts, but is no longer continuously reopened from `onResume()` after the user closes it.
-- Added a draggable overlay return button when Spotify or VLC is opened.
-- VLC workflow now assists Picture-in-Picture: start a video in VLC and tap **VLC zwevend** to return to the dashboard. VLC enters PiP when VLC's own PiP setting is enabled.
-- Increased the height of both icon panels and enlarged fixed/custom app icons to prevent clipping on the 1280×800 split-screen layout.
-- Retained six configurable app slots and drag-to-trash removal.
-- Retained RaspiCar settings, including direct access to full Android settings.
-- Delayed initial Waze launch until the first location permission dialog has finished.
-- Version bumped to `2.0.0-v2` / version code 2.
+- Removed VLC-specific dashboard integration.
+- Made Spotify the dedicated media source for the home screen.
+- Added embedded Camera2 preview for cameras exposed by Android, including supported USB cameras.
+- Added camera selection, live preview, mirror and rotation settings.
+- Replaced the fixed VLC button with Camera.
+- Fixed app row is now GPS Connector, Camera, Spotify and Settings.
+- Changed shortcuts from six custom slots to five custom slots plus a permanent Apps drawer.
+- Added an app drawer containing installed launchable apps.
+- Added Compact, Medium, Large and Automatic layout profiles.
+- Added six predefined colour themes and a custom accent colour.
+- Added automatic sunrise/sunset dimming with separate day/night levels and time offset.
+- Added a seven-step first-run setup flow.
+- Added status checks for apps and permissions.
+- Kept Waze on-demand behaviour: closing Waze does not cause RaspiCar to force it open again.
+- Added optional persistent GitHub signing through repository secrets.
+- Added V3 README artwork.
 
-## V1
+## V2 — 2.0.0
 
-- Initial custom launcher/dashboard.
-- Waze split-screen launch.
-- Weather, speed, universal media session controls, custom app slots and HDMI dim overlay.
+- Spotify-focused mini player.
+- Manual Open Waze control.
+- Larger fixed-app and shortcut tiles.
+- Floating return overlay for external apps.
+- Waze no longer reopened on every resume.
+
+## V1 — 1.0.0
+
+- First dashboard prototype.

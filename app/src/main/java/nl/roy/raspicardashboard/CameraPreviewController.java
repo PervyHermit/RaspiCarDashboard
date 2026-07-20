@@ -49,7 +49,9 @@ public final class CameraPreviewController {
     private String aspectMode = ASPECT_AUTO;
     private boolean mirror;
     private int rotation;
-    private boolean requested;
+    private volatile boolean requested;
+    private volatile boolean openingCamera;
+    private volatile int openGeneration;
     private Size previewSize;
 
     public CameraPreviewController(Activity activity, TextureView textureView, Listener listener) {
@@ -65,14 +67,22 @@ public final class CameraPreviewController {
     }
 
     public void start(String cameraId, boolean mirror, int rotation, String scaleMode, String aspectMode) {
+        String normalizedId = cameraId == null || cameraId.trim().isEmpty() ? null : cameraId;
+        boolean cameraChanged = pendingCameraId != null && normalizedId != null
+                && !pendingCameraId.equals(normalizedId);
         requested = true;
-        pendingCameraId = cameraId;
+        pendingCameraId = normalizedId;
         this.mirror = mirror;
         this.rotation = normalizeRotation(rotation);
         this.scaleMode = SCALE_FILL.equals(scaleMode) ? SCALE_FILL : SCALE_FIT;
         this.aspectMode = ASPECT_4_3.equals(aspectMode) || ASPECT_16_9.equals(aspectMode)
                 ? aspectMode : ASPECT_AUTO;
         ensureThread();
+        if (cameraChanged && (cameraDevice != null || openingCamera)) {
+            openGeneration++;
+            openingCamera = false;
+            closeCamera();
+        }
         if (cameraDevice != null) {
             applyTransform();
             return;
@@ -83,6 +93,8 @@ public final class CameraPreviewController {
 
     public void stop() {
         requested = false;
+        openGeneration++;
+        openingCamera = false;
         closeCamera();
         if (cameraThread != null) {
             cameraThread.quitSafely();
@@ -94,6 +106,7 @@ public final class CameraPreviewController {
     }
 
     public String findBestCameraId() {
+        if (cameraManager == null) return null;
         try {
             String[] ids = cameraManager.getCameraIdList();
             if (ids.length == 0) return null;
@@ -102,7 +115,7 @@ public final class CameraPreviewController {
                 if (facing != null && facing == CameraCharacteristics.LENS_FACING_EXTERNAL) return id;
             }
             return ids[0];
-        } catch (CameraAccessException e) {
+        } catch (CameraAccessException | RuntimeException e) {
             return null;
         }
     }
@@ -115,7 +128,18 @@ public final class CameraPreviewController {
     }
 
     private void openSelectedCamera() {
-        if (!requested || cameraDevice != null) return;
+        if (!requested || cameraDevice != null || openingCamera) return;
+        if (cameraManager == null) {
+            notifyStatus("Cameraservice niet beschikbaar", true);
+            return;
+        }
+        if (cameraHandler == null) {
+            ensureThread();
+            if (cameraHandler == null) {
+                notifyStatus("Cameraproces kon niet starten", true);
+                return;
+            }
+        }
         if (activity.checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             notifyStatus("Cameratoestemming ontbreekt", true);
             return;
@@ -127,15 +151,21 @@ public final class CameraPreviewController {
             return;
         }
         pendingCameraId = cameraId;
+        final int generation = ++openGeneration;
+        openingCamera = true;
         try {
             notifyStatus("Camera openen…", false);
-            cameraManager.openCamera(cameraId, stateCallback, cameraHandler);
+            cameraManager.openCamera(cameraId, createStateCallback(generation), cameraHandler);
         } catch (CameraAccessException | IllegalArgumentException | SecurityException e) {
+            if (generation == openGeneration) openingCamera = false;
             notifyStatus("Camera kon niet worden geopend", true);
+        } catch (RuntimeException e) {
+            if (generation == openGeneration) openingCamera = false;
+            notifyStatus("Cameraservice gaf een fout", true);
         }
     }
 
-    private void createPreviewSession() {
+    private void createPreviewSession(int generation) {
         if (cameraDevice == null || !textureView.isAvailable()) return;
         try {
             SurfaceTexture texture = textureView.getSurfaceTexture();
@@ -152,22 +182,28 @@ public final class CameraPreviewController {
             }
             cameraDevice.createCaptureSession(Arrays.asList(previewSurface), new CameraCaptureSession.StateCallback() {
                 @Override public void onConfigured(CameraCaptureSession session) {
-                    if (cameraDevice == null) return;
+                    if (!requested || generation != openGeneration || cameraDevice == null) {
+                        try { session.close(); } catch (RuntimeException ignored) { }
+                        return;
+                    }
                     captureSession = session;
                     try {
                         session.setRepeatingRequest(builder.build(), null, cameraHandler);
                         notifyStatus("", false);
-                    } catch (CameraAccessException e) {
-                        notifyStatus("Camerabeeld kon niet starten", true);
+                    } catch (CameraAccessException | RuntimeException e) {
+                        if (generation == openGeneration) {
+                            notifyStatus("Camerabeeld kon niet starten", true);
+                        }
                     }
                 }
 
                 @Override public void onConfigureFailed(CameraCaptureSession session) {
-                    notifyStatus("Camera-preview mislukt", true);
+                    try { session.close(); } catch (RuntimeException ignored) { }
+                    if (generation == openGeneration) notifyStatus("Camera-preview mislukt", true);
                 }
             }, cameraHandler);
         } catch (CameraAccessException | RuntimeException e) {
-            notifyStatus("Camera-preview niet beschikbaar", true);
+            if (generation == openGeneration) notifyStatus("Camera-preview niet beschikbaar", true);
         }
     }
 
@@ -205,6 +241,7 @@ public final class CameraPreviewController {
     }
 
     private boolean supportsContinuousVideoAutoFocus(String cameraId) {
+        if (cameraManager == null) return false;
         try {
             int[] modes = cameraManager.getCameraCharacteristics(cameraId)
                     .get(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES);
@@ -215,6 +252,7 @@ public final class CameraPreviewController {
     }
 
     private Size choosePreviewSize(String cameraId, int targetWidth, int targetHeight) throws CameraAccessException {
+        if (cameraManager == null) return new Size(640, 480);
         CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraId);
         StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
         if (map == null) return new Size(640, 480);
@@ -262,26 +300,46 @@ public final class CameraPreviewController {
     }
 
     private void notifyStatus(String status, boolean error) {
-        activity.runOnUiThread(() -> listener.onCameraStatus(status, error));
+        activity.runOnUiThread(() -> {
+            if (activity.isFinishing() || activity.isDestroyed()) return;
+            try { listener.onCameraStatus(status, error); }
+            catch (RuntimeException ignored) { }
+        });
     }
 
-    private final CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
-        @Override public void onOpened(CameraDevice camera) {
-            if (!requested) { camera.close(); return; }
-            cameraDevice = camera;
-            createPreviewSession();
-        }
-        @Override public void onDisconnected(CameraDevice camera) {
-            camera.close();
-            cameraDevice = null;
-            notifyStatus("Camera losgekoppeld", true);
-        }
-        @Override public void onError(CameraDevice camera, int error) {
-            camera.close();
-            cameraDevice = null;
-            notifyStatus("Camera is bezet of niet beschikbaar", true);
-        }
-    };
+    private CameraDevice.StateCallback createStateCallback(final int generation) {
+        return new CameraDevice.StateCallback() {
+            @Override public void onOpened(CameraDevice camera) {
+                if (generation != openGeneration || !requested) {
+                    try { camera.close(); } catch (RuntimeException ignored) { }
+                    return;
+                }
+                openingCamera = false;
+                if (generation != openGeneration || !requested) {
+                    try { camera.close(); } catch (RuntimeException ignored) { }
+                    return;
+                }
+                cameraDevice = camera;
+                createPreviewSession(generation);
+            }
+
+            @Override public void onDisconnected(CameraDevice camera) {
+                try { camera.close(); } catch (RuntimeException ignored) { }
+                if (generation != openGeneration) return;
+                openingCamera = false;
+                cameraDevice = null;
+                notifyStatus("Camera losgekoppeld", true);
+            }
+
+            @Override public void onError(CameraDevice camera, int error) {
+                try { camera.close(); } catch (RuntimeException ignored) { }
+                if (generation != openGeneration) return;
+                openingCamera = false;
+                cameraDevice = null;
+                notifyStatus("Camera is bezet of niet beschikbaar", true);
+            }
+        };
+    }
 
     private final TextureView.SurfaceTextureListener surfaceListener = new TextureView.SurfaceTextureListener() {
         @Override public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {

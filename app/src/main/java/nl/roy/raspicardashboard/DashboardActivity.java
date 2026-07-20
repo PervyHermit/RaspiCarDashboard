@@ -546,6 +546,7 @@ public final class DashboardActivity extends Activity implements LocationListene
         cameraMode = true;
         mediaPanel.setVisibility(View.GONE);
         cameraPanel.setVisibility(View.VISIBLE);
+        setVolumeCardVisible(false);
         modeTitle.setText("CAMERA");
         startSelectedCamera();
     }
@@ -555,7 +556,14 @@ public final class DashboardActivity extends Activity implements LocationListene
         if (cameraController != null) cameraController.stop();
         cameraPanel.setVisibility(View.GONE);
         mediaPanel.setVisibility(View.VISIBLE);
+        setVolumeCardVisible(true);
         updateActiveMediaUi();
+    }
+
+    private void setVolumeCardVisible(boolean visible) {
+        View volumeCard = findViewById(R.id.volumeCard);
+        if (volumeCard == null) return;
+        volumeCard.setVisibility(visible ? View.VISIBLE : View.GONE);
     }
 
     private void startSelectedCamera() {
@@ -1062,6 +1070,7 @@ public final class DashboardActivity extends Activity implements LocationListene
         root.setPadding(dp(rootPadding), dp(rootPadding), dp(rootPadding), dp(rootPadding));
         setViewHeight(R.id.headerCard, headerHeight);
         setViewHeight(R.id.volumeCard, volumeHeight);
+        setVolumeCardVisible(!cameraMode);
         setViewHeight(R.id.fixedAppsCard, appsHeight);
         setViewHeight(R.id.shortcutsCard, shortcutHeight);
         setViewHeight(R.id.footerText, footerHeight);

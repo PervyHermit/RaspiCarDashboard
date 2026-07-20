@@ -1,5 +1,13 @@
 # Changelog
 
+## V4.0.2 — camera stability fix
+
+- Fixed a crash when opening **Camera kiezen** on some Camera2/USB-camera implementations.
+- Coalesced duplicate preview starts and protected against stale Camera2 callbacks.
+- Hardened camera enumeration when a device reports incomplete camera characteristics.
+- Hidden the media-volume card while the embedded camera is active, giving the camera panel more vertical space.
+- Restored the volume card automatically when returning to Spotify/local media.
+
 ## V4 — 4.0.0
 
 - Added a universal draggable return-to-dashboard overlay for external apps opened from RaspiCar.

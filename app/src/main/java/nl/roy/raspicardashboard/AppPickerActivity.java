@@ -53,8 +53,7 @@ public final class AppPickerActivity extends Activity {
         listView.setOnItemClickListener((parent, view, position, id) -> {
             AppEntry entry = visibleApps.get(position);
             if (launchMode) {
-                Intent launch = getPackageManager().getLaunchIntentForPackage(entry.packageName);
-                if (launch != null) startActivity(launch);
+                ExternalAppLauncher.launchPackage(this, entry.packageName);
             } else {
                 Intent result = new Intent().putExtra(EXTRA_PACKAGE, entry.packageName);
                 setResult(RESULT_OK, result);

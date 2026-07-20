@@ -1,0 +1,75 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:tag="root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:tag="primaryText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Lokale muziek"
+        android:textColor="@color/text_primary"
+        android:textSize="28sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/localFolderText"
+        android:tag="secondaryText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Nog geen muziekmap gekozen"
+        android:textColor="@color/text_secondary"
+        android:textSize="14sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/chooseLocalFolderButton"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_weight="1"
+            android:text="Kies muziekmap" />
+
+        <Button
+            android:id="@+id/refreshLocalLibraryButton"
+            android:layout_width="170dp"
+            android:layout_height="56dp"
+            android:layout_marginStart="8dp"
+            android:text="Vernieuwen" />
+
+        <Button
+            android:id="@+id/stopLocalPlaybackButton"
+            android:layout_width="170dp"
+            android:layout_height="56dp"
+            android:layout_marginStart="8dp"
+            android:text="Stop speler" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/localMediaStatus"
+        android:tag="accentText"
+        android:layout_width="match_parent"
+        android:layout_height="42dp"
+        android:gravity="center_vertical"
+        android:text="Muziek zoeken…"
+        android:textColor="@color/accent"
+        android:textSize="14sp" />
+
+    <ListView
+        android:id="@+id/localTrackList"
+        android:tag="panel"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="@android:color/transparent"
+        android:dividerHeight="6dp"
+        android:padding="8dp" />
+</LinearLayout>

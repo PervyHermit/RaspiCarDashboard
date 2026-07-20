@@ -25,7 +25,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="V3 • Spotify • USB-camera • adaptieve layouts"
+            android:text="V4 • Spotify + lokale muziek • USB-camera • adaptieve layouts"
             android:textColor="@color/text_secondary"
             android:textSize="14sp" />
 
@@ -49,7 +49,7 @@
             android:layout_marginTop="10dp"
             android:checked="true"
             android:paddingHorizontal="18dp"
-            android:text="GPS Connector eerst kort openen"
+            android:text="Externe gps via GPS Connector gebruiken"
             android:textColor="@color/text_primary"
             android:textSize="17sp" />
 
@@ -73,9 +73,34 @@
             android:layout_marginTop="10dp"
             android:checked="true"
             android:paddingHorizontal="18dp"
-            android:text="Zwevende terugknop boven Spotify"
+            android:text="Zwevende terugknop boven alle extern geopende apps"
             android:textColor="@color/text_primary"
             android:textSize="17sp" />
+
+
+        <TextView
+            android:tag="accentText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Muziek"
+            android:textColor="@color/accent"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <Spinner
+            android:id="@+id/mediaSourceSpinner"
+            android:tag="panel"
+            android:layout_width="match_parent"
+            android:layout_height="58dp"
+            android:layout_marginTop="8dp" />
+
+        <Button
+            android:id="@+id/localMediaButton"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:text="Lokale muziekmap en bibliotheek" />
 
         <TextView
             android:tag="accentText"
@@ -102,6 +127,37 @@
             android:layout_marginTop="6dp"
             android:textColor="@color/text_secondary"
             android:textSize="14sp" />
+
+
+        <Spinner
+            android:id="@+id/cameraScaleSpinner"
+            android:tag="panel"
+            android:layout_width="match_parent"
+            android:layout_height="58dp"
+            android:layout_marginTop="8dp" />
+
+        <Spinner
+            android:id="@+id/cameraAspectSpinner"
+            android:tag="panel"
+            android:layout_width="match_parent"
+            android:layout_height="58dp"
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:id="@+id/cameraWidthLabel"
+            android:tag="secondaryText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Camerabreedte in paneel: 100%"
+            android:textColor="@color/text_secondary" />
+
+        <SeekBar
+            android:id="@+id/cameraWidthSeek"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:max="55"
+            android:progress="55" />
 
         <TextView
             android:tag="accentText"

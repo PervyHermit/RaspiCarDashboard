@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
@@ -21,11 +22,17 @@ import android.view.TextureView;
 import java.util.Arrays;
 import java.util.Comparator;
 
-/** Lightweight Camera2 preview for the selected built-in or USB camera. */
+/** Lightweight Camera2 preview with preserved aspect ratio and user-selectable fit/fill. */
 public final class CameraPreviewController {
     public interface Listener {
         void onCameraStatus(String status, boolean isError);
     }
+
+    public static final String SCALE_FIT = "fit";
+    public static final String SCALE_FILL = "fill";
+    public static final String ASPECT_AUTO = "auto";
+    public static final String ASPECT_4_3 = "4:3";
+    public static final String ASPECT_16_9 = "16:9";
 
     private final Activity activity;
     private final TextureView textureView;
@@ -38,7 +45,12 @@ public final class CameraPreviewController {
     private CameraCaptureSession captureSession;
     private Surface previewSurface;
     private String pendingCameraId;
+    private String scaleMode = SCALE_FIT;
+    private String aspectMode = ASPECT_AUTO;
+    private boolean mirror;
+    private int rotation;
     private boolean requested;
+    private Size previewSize;
 
     public CameraPreviewController(Activity activity, TextureView textureView, Listener listener) {
         this.activity = activity;
@@ -49,11 +61,22 @@ public final class CameraPreviewController {
     }
 
     public void start(String cameraId, boolean mirror, int rotation) {
+        start(cameraId, mirror, rotation, SCALE_FIT, ASPECT_AUTO);
+    }
+
+    public void start(String cameraId, boolean mirror, int rotation, String scaleMode, String aspectMode) {
         requested = true;
         pendingCameraId = cameraId;
-        textureView.setScaleX(mirror ? -1f : 1f);
-        textureView.setRotation(rotation);
+        this.mirror = mirror;
+        this.rotation = normalizeRotation(rotation);
+        this.scaleMode = SCALE_FILL.equals(scaleMode) ? SCALE_FILL : SCALE_FIT;
+        this.aspectMode = ASPECT_4_3.equals(aspectMode) || ASPECT_16_9.equals(aspectMode)
+                ? aspectMode : ASPECT_AUTO;
         ensureThread();
+        if (cameraDevice != null) {
+            applyTransform();
+            return;
+        }
         if (textureView.isAvailable()) openSelectedCamera();
         else notifyStatus("Camera voorbereiden…", false);
     }
@@ -63,11 +86,8 @@ public final class CameraPreviewController {
         closeCamera();
         if (cameraThread != null) {
             cameraThread.quitSafely();
-            try {
-                cameraThread.join(700);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
+            try { cameraThread.join(700); }
+            catch (InterruptedException e) { Thread.currentThread().interrupt(); }
             cameraThread = null;
             cameraHandler = null;
         }
@@ -78,8 +98,7 @@ public final class CameraPreviewController {
             String[] ids = cameraManager.getCameraIdList();
             if (ids.length == 0) return null;
             for (String id : ids) {
-                Integer facing = cameraManager.getCameraCharacteristics(id)
-                        .get(CameraCharacteristics.LENS_FACING);
+                Integer facing = cameraManager.getCameraCharacteristics(id).get(CameraCharacteristics.LENS_FACING);
                 if (facing != null && facing == CameraCharacteristics.LENS_FACING_EXTERNAL) return id;
             }
             return ids[0];
@@ -121,9 +140,10 @@ public final class CameraPreviewController {
         try {
             SurfaceTexture texture = textureView.getSurfaceTexture();
             if (texture == null) return;
-            Size size = choosePreviewSize(pendingCameraId,
+            previewSize = choosePreviewSize(pendingCameraId,
                     Math.max(1, textureView.getWidth()), Math.max(1, textureView.getHeight()));
-            texture.setDefaultBufferSize(size.getWidth(), size.getHeight());
+            texture.setDefaultBufferSize(previewSize.getWidth(), previewSize.getHeight());
+            applyTransform();
             previewSurface = new Surface(texture);
             CaptureRequest.Builder builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             builder.addTarget(previewSurface);
@@ -131,8 +151,7 @@ public final class CameraPreviewController {
                 builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO);
             }
             cameraDevice.createCaptureSession(Arrays.asList(previewSurface), new CameraCaptureSession.StateCallback() {
-                @Override
-                public void onConfigured(CameraCaptureSession session) {
+                @Override public void onConfigured(CameraCaptureSession session) {
                     if (cameraDevice == null) return;
                     captureSession = session;
                     try {
@@ -143,8 +162,7 @@ public final class CameraPreviewController {
                     }
                 }
 
-                @Override
-                public void onConfigureFailed(CameraCaptureSession session) {
+                @Override public void onConfigureFailed(CameraCaptureSession session) {
                     notifyStatus("Camera-preview mislukt", true);
                 }
             }, cameraHandler);
@@ -153,15 +171,45 @@ public final class CameraPreviewController {
         }
     }
 
+    private void applyTransform() {
+        if (previewSize == null || textureView.getWidth() <= 0 || textureView.getHeight() <= 0) return;
+        activity.runOnUiThread(() -> {
+            float viewWidth = textureView.getWidth();
+            float viewHeight = textureView.getHeight();
+            float bufferWidth = previewSize.getWidth();
+            float bufferHeight = previewSize.getHeight();
+            if (rotation == 90 || rotation == 270) {
+                float swap = bufferWidth;
+                bufferWidth = bufferHeight;
+                bufferHeight = swap;
+            }
+
+            // TextureView normally stretches the buffer to fill. This matrix cancels that
+            // non-uniform stretch, then applies either aspect-fit or aspect-fill.
+            float defaultScaleX = viewWidth / bufferWidth;
+            float defaultScaleY = viewHeight / bufferHeight;
+            float uniformScale = SCALE_FILL.equals(scaleMode)
+                    ? Math.max(defaultScaleX, defaultScaleY)
+                    : Math.min(defaultScaleX, defaultScaleY);
+            float correctionX = uniformScale / defaultScaleX;
+            float correctionY = uniformScale / defaultScaleY;
+
+            Matrix matrix = new Matrix();
+            float centerX = viewWidth / 2f;
+            float centerY = viewHeight / 2f;
+            matrix.postScale(correctionX, correctionY, centerX, centerY);
+            if (mirror) matrix.postScale(-1f, 1f, centerX, centerY);
+            if (rotation != 0) matrix.postRotate(rotation, centerX, centerY);
+            textureView.setTransform(matrix);
+        });
+    }
 
     private boolean supportsContinuousVideoAutoFocus(String cameraId) {
         try {
             int[] modes = cameraManager.getCameraCharacteristics(cameraId)
                     .get(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES);
             if (modes == null) return false;
-            for (int mode : modes) {
-                if (mode == CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO) return true;
-            }
+            for (int mode : modes) if (mode == CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO) return true;
         } catch (CameraAccessException | IllegalArgumentException ignored) { }
         return false;
     }
@@ -172,17 +220,29 @@ public final class CameraPreviewController {
         if (map == null) return new Size(640, 480);
         Size[] choices = map.getOutputSizes(SurfaceTexture.class);
         if (choices == null || choices.length == 0) return new Size(640, 480);
-        double targetRatio = (double) targetWidth / targetHeight;
+        double targetRatio;
+        if (ASPECT_4_3.equals(aspectMode)) targetRatio = 4.0 / 3.0;
+        else if (ASPECT_16_9.equals(aspectMode)) targetRatio = 16.0 / 9.0;
+        else targetRatio = (double) targetWidth / Math.max(1, targetHeight);
         return Arrays.stream(choices)
                 .filter(size -> size.getWidth() <= 1920 && size.getHeight() <= 1080)
                 .min(Comparator.comparingDouble(size -> {
                     double ratio = (double) size.getWidth() / size.getHeight();
-                    double ratioPenalty = Math.abs(ratio - targetRatio) * 1000.0;
+                    double ratioPenalty = Math.abs(ratio - targetRatio) * 1500.0;
                     double sizePenalty = Math.abs(size.getWidth() - targetWidth)
                             + Math.abs(size.getHeight() - targetHeight);
                     return ratioPenalty + sizePenalty;
                 }))
                 .orElse(choices[0]);
+    }
+
+    private int normalizeRotation(int value) {
+        int normalized = ((value % 360) + 360) % 360;
+        if (normalized < 45) return 0;
+        if (normalized < 135) return 90;
+        if (normalized < 225) return 180;
+        if (normalized < 315) return 270;
+        return 0;
     }
 
     private void closeCamera() {
@@ -198,6 +258,7 @@ public final class CameraPreviewController {
             try { previewSurface.release(); } catch (RuntimeException ignored) { }
             previewSurface = null;
         }
+        previewSize = null;
     }
 
     private void notifyStatus(String status, boolean error) {
@@ -205,25 +266,17 @@ public final class CameraPreviewController {
     }
 
     private final CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
-        @Override
-        public void onOpened(CameraDevice camera) {
-            if (!requested) {
-                camera.close();
-                return;
-            }
+        @Override public void onOpened(CameraDevice camera) {
+            if (!requested) { camera.close(); return; }
             cameraDevice = camera;
             createPreviewSession();
         }
-
-        @Override
-        public void onDisconnected(CameraDevice camera) {
+        @Override public void onDisconnected(CameraDevice camera) {
             camera.close();
             cameraDevice = null;
             notifyStatus("Camera losgekoppeld", true);
         }
-
-        @Override
-        public void onError(CameraDevice camera, int error) {
+        @Override public void onError(CameraDevice camera, int error) {
             camera.close();
             cameraDevice = null;
             notifyStatus("Camera is bezet of niet beschikbaar", true);
@@ -234,7 +287,9 @@ public final class CameraPreviewController {
         @Override public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
             if (requested) openSelectedCamera();
         }
-        @Override public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) { }
+        @Override public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
+            applyTransform();
+        }
         @Override public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
             closeCamera();
             return true;

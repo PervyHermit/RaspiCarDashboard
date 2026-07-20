@@ -1,5 +1,23 @@
 # Changelog
 
+## V4 — 4.0.0
+
+- Added a universal draggable return-to-dashboard overlay for external apps opened from RaspiCar.
+- Added edge snapping and saved position for the return overlay.
+- Made GPS Connector optional and added built-in Android GPS mode.
+- Added Spotify, Local and Automatic media-source modes.
+- Added a built-in local audio player with background playback and media notification.
+- Added local-folder selection through Android Storage Access Framework.
+- Added a local music library browser for internal, SD-card and USB storage providers.
+- Added a device media-volume slider with mute/restore.
+- Fixed stretched camera previews by preserving the camera aspect ratio.
+- Added camera Fit and Fill/Crop display modes.
+- Added automatic, 4:3 and 16:9 camera aspect preferences.
+- Added adjustable camera preview width from 45% to 100%.
+- Updated the setup wizard for optional GPS Connector and media-source selection.
+- Updated fixed app behaviour to reflect the selected GPS and media source.
+- Kept the established Waze behaviour unchanged.
+
 ## V3 — 3.0.0
 
 - Removed VLC-specific dashboard integration.

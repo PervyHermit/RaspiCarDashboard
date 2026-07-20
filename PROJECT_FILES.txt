@@ -1,14 +1,20 @@
-RaspiCar Dashboard V3 project contents
+RaspiCar Dashboard V4 project contents
 
 .github/workflows/build-apk.yml
 app/build.gradle
+app/proguard-rules.pro
 app/src/main/AndroidManifest.xml
 app/src/main/java/nl/roy/raspicardashboard/AppPickerActivity.java
 app/src/main/java/nl/roy/raspicardashboard/CameraPreviewController.java
 app/src/main/java/nl/roy/raspicardashboard/CameraSelectionActivity.java
 app/src/main/java/nl/roy/raspicardashboard/DashboardActivity.java
 app/src/main/java/nl/roy/raspicardashboard/DimOverlayService.java
+app/src/main/java/nl/roy/raspicardashboard/ExternalAppLauncher.java
 app/src/main/java/nl/roy/raspicardashboard/ExternalAppOverlayService.java
+app/src/main/java/nl/roy/raspicardashboard/LocalMediaActivity.java
+app/src/main/java/nl/roy/raspicardashboard/LocalMediaLibrary.java
+app/src/main/java/nl/roy/raspicardashboard/LocalMediaPlaybackService.java
+app/src/main/java/nl/roy/raspicardashboard/LocalTrack.java
 app/src/main/java/nl/roy/raspicardashboard/MediaNotificationListener.java
 app/src/main/java/nl/roy/raspicardashboard/SettingsActivity.java
 app/src/main/java/nl/roy/raspicardashboard/SetupActivity.java
@@ -17,12 +23,23 @@ app/src/main/java/nl/roy/raspicardashboard/ThemeManager.java
 app/src/main/res/layout/activity_app_picker.xml
 app/src/main/res/layout/activity_camera_selection.xml
 app/src/main/res/layout/activity_dashboard.xml
+app/src/main/res/layout/activity_local_media.xml
 app/src/main/res/layout/activity_settings.xml
 app/src/main/res/layout/activity_setup.xml
+app/src/main/res/drawable/*
+app/src/main/res/mipmap-*/*
+app/src/main/res/values/*
+docs/design-reference.png
 docs/v3-dashboard.png
-README.md
-CHANGELOG.md
 BUILD_WITH_GITHUB.md
+CHANGELOG.md
+LICENSE
+README.md
 SIGNING_WITH_GITHUB.md
-V3_UPDATE_GUIDE.md
 SOURCE_AUDIT.md
+V2_UPDATE_GUIDE.md
+V3_UPDATE_GUIDE.md
+V4_UPDATE_GUIDE.md
+build.gradle
+gradle.properties
+settings.gradle

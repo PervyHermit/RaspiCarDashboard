@@ -12,7 +12,7 @@ import android.view.WindowManager;
 import android.widget.TextView;
 
 /**
- * Small draggable return button shown above Spotify so the dashboard can be restored.
+ * Small draggable return button shown above external apps opened from RaspiCar.
  */
 public final class ExternalAppOverlayService extends Service {
     public static final String ACTION_SHOW = "nl.roy.raspicardashboard.EXTERNAL_OVERLAY_SHOW";
@@ -71,8 +71,9 @@ public final class ExternalAppOverlayService extends Service {
                 PixelFormat.TRANSLUCENT
         );
         layoutParams.gravity = Gravity.TOP | Gravity.START;
-        layoutParams.x = dp(22);
-        layoutParams.y = dp(70);
+        android.content.SharedPreferences prefs = getSharedPreferences(SettingsActivity.PREFS, MODE_PRIVATE);
+        layoutParams.x = prefs.getInt("return_overlay_x", dp(22));
+        layoutParams.y = prefs.getInt("return_overlay_y", dp(70));
 
         windowManager.addView(view, layoutParams);
         button = view;
@@ -110,6 +111,31 @@ public final class ExternalAppOverlayService extends Service {
         return null;
     }
 
+    private void snapToNearestEdge(View view) {
+        if (layoutParams == null || windowManager == null) return;
+        int screenWidth;
+        int screenHeight;
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            android.graphics.Rect bounds = windowManager.getCurrentWindowMetrics().getBounds();
+            screenWidth = bounds.width();
+            screenHeight = bounds.height();
+        } else {
+            android.util.DisplayMetrics metrics = new android.util.DisplayMetrics();
+            //noinspection deprecation
+            windowManager.getDefaultDisplay().getMetrics(metrics);
+            screenWidth = metrics.widthPixels;
+            screenHeight = metrics.heightPixels;
+        }
+        int maxX = Math.max(0, screenWidth - view.getWidth());
+        int maxY = Math.max(0, screenHeight - view.getHeight());
+        layoutParams.x = layoutParams.x + view.getWidth() / 2 < screenWidth / 2 ? dp(10) : Math.max(dp(10), maxX - dp(10));
+        layoutParams.y = Math.max(dp(10), Math.min(maxY - dp(10), layoutParams.y));
+        try { windowManager.updateViewLayout(view, layoutParams); } catch (RuntimeException ignored) { }
+        getSharedPreferences(SettingsActivity.PREFS, MODE_PRIVATE).edit()
+                .putInt("return_overlay_x", layoutParams.x)
+                .putInt("return_overlay_y", layoutParams.y).apply();
+    }
+
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
     }
@@ -144,7 +170,11 @@ public final class ExternalAppOverlayService extends Service {
                     }
                     return true;
                 case MotionEvent.ACTION_UP:
-                    if (!moved) view.performClick();
+                    if (!moved) {
+                        view.performClick();
+                    } else {
+                        snapToNearestEdge(view);
+                    }
                     return true;
                 case MotionEvent.ACTION_CANCEL:
                     return true;

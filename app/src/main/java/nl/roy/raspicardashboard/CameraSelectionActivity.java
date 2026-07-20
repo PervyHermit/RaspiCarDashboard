@@ -111,7 +111,10 @@ public final class CameraSelectionActivity extends Activity {
         if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) return;
         int position = Math.max(0, Math.min(cameraSpinner.getSelectedItemPosition(), cameraIds.size() - 1));
         controller.stop();
-        controller.start(cameraIds.get(position), mirrorSwitch.isChecked(), rotationSpinner.getSelectedItemPosition() * 90);
+        controller.start(cameraIds.get(position), mirrorSwitch.isChecked(),
+                rotationSpinner.getSelectedItemPosition() * 90,
+                prefs.getString(SettingsActivity.PREF_CAMERA_SCALE, CameraPreviewController.SCALE_FIT),
+                prefs.getString(SettingsActivity.PREF_CAMERA_ASPECT, CameraPreviewController.ASPECT_AUTO));
     }
 
     private void saveAndFinish() {

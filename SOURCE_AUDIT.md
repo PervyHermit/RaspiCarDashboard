@@ -1,21 +1,12 @@
-# V3 source audit
+# V4 source audit
 
-Completed checks:
+Checks performed in the generation environment:
 
-- All Android XML resources parse successfully.
-- Manifest activities and services have matching Java classes.
-- Java resource references were checked against generated resource names.
-- Java sources compile against the Android 36 public `android.jar` with Java 17.
-- Android resources compile and link with AAPT2 36.
-- Compiled classes convert to `classes.dex` with D8 36.
-- A signed test APK was created and verified with APK Signature Scheme v3.
-- APK badging confirms package `nl.roy.raspicardashboard`, version code 3, min SDK 29 and target SDK 36.
+- All Android XML resource files and the manifest parse successfully.
+- Java source files pass a syntax-only `javac` parse; Android symbols cannot be resolved without an installed Android SDK.
+- Java `R.id`, `R.layout`, `R.drawable`, `R.string` and `R.color` references were compared with project resources; no project resource references are missing.
+- Manifest entries were added for the local-media activity and media-playback foreground service.
+- Version code/name and GitHub artifact name were updated to V4.
+- Private signing material is not included in the source or update archives.
 
-Remaining device tests:
-
-- USB-camera enumeration and preview on the KonstaKANG Raspberry Pi build.
-- Camera rotation and mirror behaviour with the actual vehicle camera.
-- Compact layout on the Android 17 phone.
-- Automatic day/night transition with GPS location.
-- Spotify metadata and transport controls on the target devices.
-- Waze right-side split restoration after setup.
+The Android SDK was unavailable in this execution environment, so the final Android/Gradle compilation must run through the included GitHub Actions workflow. Camera, split-screen, overlay and audio behaviour still require testing on the target Raspberry Pi/phone.

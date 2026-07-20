@@ -62,6 +62,8 @@ public final class SetupActivity extends Activity {
         hideSystemBars();
         ThemeManager.apply(this);
         renderStep();
+        stopService(new Intent(this, ExternalAppOverlayService.class)
+                .setAction(ExternalAppOverlayService.ACTION_STOP));
     }
 
     private void renderStep() {
@@ -83,18 +85,46 @@ public final class SetupActivity extends Activity {
     }
 
     private void renderWelcome() {
-        title.setText("Welkom bij RaspiCar V3");
-        description.setText("We lopen de benodigde apps, toestemmingen, camera, layout en Waze stap voor stap langs.");
-        addLargeText("RaspiCar gebruikt links een eigen dashboard en opent Waze rechts in split-screen. Spotify levert de muziekbediening en de USB-camera kan rechtstreeks in het dashboard worden getoond.");
+        title.setText("Welkom bij RaspiCar V4");
+        description.setText("We lopen locatie, apps, toestemmingen, muziek, camera, layout en Waze stap voor stap langs.");
+        addLargeText("RaspiCar gebruikt links een eigen dashboard en opent Waze rechts in split-screen. Kies Spotify, lokale muziek of automatisch; de USB-camera kan rechtstreeks in het dashboard worden getoond.");
         addInfo("Je kunt deze setup later opnieuw openen vanuit RaspiCar-instellingen.");
     }
 
     private void renderApps() {
-        title.setText("Benodigde apps");
-        description.setText("Installeer de apps die je wilt gebruiken. Spotify mag worden overgeslagen.");
+        title.setText("Apps en locatiebron");
+        description.setText("Waze is nodig voor navigatie. GPS Connector is alleen nodig bij een externe gps zoals de Garmin.");
+        addLabel("Locatiebron");
+        Spinner gpsSource = new Spinner(this);
+        gpsSource.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
+                new String[]{"Ingebouwde Android-gps", "Externe gps via GPS Connector"}));
+        boolean useConnector = prefs.getBoolean(SettingsActivity.PREF_START_GPS, true);
+        gpsSource.setSelection(useConnector ? 1 : 0);
+        gpsSource.setOnItemSelectedListener(new SimpleSelectionListener(position -> {
+            boolean selectedConnector = position == 1;
+            boolean previous = prefs.getBoolean(SettingsActivity.PREF_START_GPS, true);
+            prefs.edit().putBoolean(SettingsActivity.PREF_START_GPS, selectedConnector).apply();
+            if (selectedConnector != previous) content.post(this::renderStep);
+        }));
+        content.addView(gpsSource, fullWidth(58));
         addAppRow("Waze", WAZE, true);
-        addAppRow("GPS Connector", GPS, true);
+        if (useConnector) addAppRow("GPS Connector", GPS, true);
         addAppRow("Spotify", SPOTIFY, false);
+        addLabel("Mediabron voor het dashboard");
+        Spinner mediaSource = new Spinner(this);
+        mediaSource.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
+                new String[]{"Spotify", "Lokale muziek", "Automatisch"}));
+        String source = prefs.getString(SettingsActivity.PREF_MEDIA_SOURCE, SettingsActivity.MEDIA_SOURCE_SPOTIFY);
+        mediaSource.setSelection(SettingsActivity.MEDIA_SOURCE_LOCAL.equals(source) ? 1
+                : SettingsActivity.MEDIA_SOURCE_AUTO.equals(source) ? 2 : 0);
+        mediaSource.setOnItemSelectedListener(new SimpleSelectionListener(position ->
+                prefs.edit().putString(SettingsActivity.PREF_MEDIA_SOURCE,
+                        new String[]{SettingsActivity.MEDIA_SOURCE_SPOTIFY, SettingsActivity.MEDIA_SOURCE_LOCAL,
+                                SettingsActivity.MEDIA_SOURCE_AUTO}[position]).apply()));
+        content.addView(mediaSource, fullWidth(58));
+        Button localLibrary = addButton("Lokale muziekmap kiezen");
+        localLibrary.setOnClickListener(v -> startActivity(new Intent(this, LocalMediaActivity.class)));
+        addInfo("Gebruik je lokale muziek, dan kun je Spotify overslaan. Bij Automatisch volgt RaspiCar de bron die daadwerkelijk speelt.");
     }
 
     private void renderPermissions() {
@@ -105,9 +135,15 @@ public final class SetupActivity extends Activity {
                         Manifest.permission.ACCESS_COARSE_LOCATION}, 301));
         addPermissionRow("Camera", hasPermission(Manifest.permission.CAMERA), v ->
                 requestPermissions(new String[]{Manifest.permission.CAMERA}, 302));
-        addPermissionRow("Spotify-mediatoegang", hasNotificationAccess(), v -> {
-            try { startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)); }
-            catch (RuntimeException e) { startActivity(new Intent(Settings.ACTION_SETTINGS)); }
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            addPermissionRow("Lokale muzieknotificatie",
+                    hasPermission(Manifest.permission.POST_NOTIFICATIONS), v ->
+                            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 303));
+        }
+        addPermissionRow("Spotify-mediatoegang (optioneel)", hasNotificationAccess(), v -> {
+            Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
+            if (!ExternalAppLauncher.launch(this, intent, "↩ Setup", true))
+                ExternalAppLauncher.launch(this, new Intent(Settings.ACTION_SETTINGS), "↩ Setup", true);
         });
         addPermissionRow("Dimlaag / zwevende terugknop", Settings.canDrawOverlays(this), v ->
                 startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -122,7 +158,7 @@ public final class SetupActivity extends Activity {
         addLargeText(cameraId == null ? "Nog geen camera gekozen" : "Gekozen camera: " + cameraId);
         Button choose = addButton("Camera kiezen en testen");
         choose.setOnClickListener(v -> startActivity(new Intent(this, CameraSelectionActivity.class)));
-        addInfo("De camera wordt alleen geopend wanneer je op Camera tikt. Spotify blijft de standaardweergave.");
+        addInfo("De camera wordt alleen geopend wanneer je op Camera tikt. In Instellingen kies je volledig beeld of vullen, 4:3/16:9 en de camerabreedte.");
     }
 
     private void renderLayoutTheme() {
@@ -164,8 +200,8 @@ public final class SetupActivity extends Activity {
                 .putExtra(DashboardActivity.EXTRA_FORCE_SPLIT, true)));
         Button home = addButton("Als standaard Home-app kiezen");
         home.setOnClickListener(v -> {
-            try { startActivity(new Intent(Settings.ACTION_HOME_SETTINGS)); }
-            catch (RuntimeException e) { startActivity(new Intent(Settings.ACTION_SETTINGS)); }
+            if (!ExternalAppLauncher.launch(this, new Intent(Settings.ACTION_HOME_SETTINGS), "↩ Setup", true))
+                ExternalAppLauncher.launch(this, new Intent(Settings.ACTION_SETTINGS), "↩ Setup", true);
         });
         addInfo("Sluit je Waze handmatig, dan blijft hij gesloten. Gebruik daarna ‘Open Waze’ in het dashboard om hem terug te halen.");
     }
@@ -174,8 +210,10 @@ public final class SetupActivity extends Activity {
         title.setText("Klaar voor gebruik");
         description.setText("Controleer de belangrijkste onderdelen. Ontbrekende optionele onderdelen blokkeren de setup niet.");
         addCheck("Waze", isInstalled(WAZE));
-        addCheck("GPS Connector", isInstalled(GPS));
+        if (prefs.getBoolean(SettingsActivity.PREF_START_GPS, true)) addCheck("GPS Connector", isInstalled(GPS));
+        else addCheck("Ingebouwde Android-gps gekozen", true);
         addCheck("Spotify", isInstalled(SPOTIFY));
+        addCheck("Lokale muziekmap", prefs.getString(SettingsActivity.PREF_LOCAL_MEDIA_TREE, null) != null);
         addCheck("Locatie", hasPermission(Manifest.permission.ACCESS_FINE_LOCATION));
         addCheck("Camera", hasPermission(Manifest.permission.CAMERA));
         addCheck("Mediatoegang", hasNotificationAccess());
@@ -206,8 +244,7 @@ public final class SetupActivity extends Activity {
         button.setText(installed ? "Open" : "Installeren");
         button.setOnClickListener(v -> {
             if (installed) {
-                Intent launch = getPackageManager().getLaunchIntentForPackage(packageName);
-                if (launch != null) startActivity(launch);
+                ExternalAppLauncher.launchPackage(this, packageName);
             } else openStore(packageName);
         });
         row.addView(button, new LinearLayout.LayoutParams(dp(150), dp(52)));
@@ -289,12 +326,13 @@ public final class SetupActivity extends Activity {
     }
 
     private void openStore(String packageName) {
-        try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + packageName))); }
-        catch (RuntimeException e) {
-            try { startActivity(new Intent(Intent.ACTION_VIEW,
-                    Uri.parse("https://play.google.com/store/apps/details?id=" + packageName))); }
-            catch (RuntimeException second) { Toast.makeText(this, "Geen appwinkel of browser gevonden", Toast.LENGTH_LONG).show(); }
+        boolean opened = ExternalAppLauncher.launch(this, new Intent(Intent.ACTION_VIEW,
+                Uri.parse("market://details?id=" + packageName)), "↩ Setup", true);
+        if (!opened) {
+            opened = ExternalAppLauncher.launch(this, new Intent(Intent.ACTION_VIEW,
+                    Uri.parse("https://play.google.com/store/apps/details?id=" + packageName)), "↩ Setup", true);
         }
+        if (!opened) Toast.makeText(this, "Geen appwinkel of browser gevonden", Toast.LENGTH_LONG).show();
     }
 
     private boolean isInstalled(String packageName) {

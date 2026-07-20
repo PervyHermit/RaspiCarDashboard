@@ -25,10 +25,18 @@ public final class SettingsActivity extends Activity {
     static final String PREF_START_GPS = "start_gps_connector";
     static final String PREF_WEATHER = "weather_enabled";
     static final String PREF_EXTERNAL_RETURN_OVERLAY = "external_return_overlay";
+    static final String PREF_MEDIA_SOURCE = "media_source";
+    static final String PREF_LOCAL_MEDIA_TREE = "local_media_tree";
+    static final String MEDIA_SOURCE_SPOTIFY = "spotify";
+    static final String MEDIA_SOURCE_LOCAL = "local";
+    static final String MEDIA_SOURCE_AUTO = "auto";
     static final String PREF_LAYOUT_SIZE = "layout_size";
     static final String PREF_CAMERA_ID = "camera_id";
     static final String PREF_CAMERA_MIRROR = "camera_mirror";
     static final String PREF_CAMERA_ROTATION = "camera_rotation";
+    static final String PREF_CAMERA_SCALE = "camera_scale";
+    static final String PREF_CAMERA_ASPECT = "camera_aspect";
+    static final String PREF_CAMERA_WIDTH_PERCENT = "camera_width_percent";
     static final String PREF_DIM_MODE = "dim_mode";
     static final String PREF_DIM_PERCENT = "dim_percent";
     static final String PREF_DIM_DAY_PERCENT = "dim_day_percent";
@@ -46,6 +54,11 @@ public final class SettingsActivity extends Activity {
     private Switch startGpsSwitch;
     private Switch weatherSwitch;
     private Switch externalReturnSwitch;
+    private Spinner mediaSourceSpinner;
+    private Spinner cameraScaleSpinner;
+    private Spinner cameraAspectSpinner;
+    private SeekBar cameraWidthSeek;
+    private TextView cameraWidthLabel;
     private Spinner layoutSpinner;
     private Spinner themeSpinner;
     private Spinner dimModeSpinner;
@@ -90,6 +103,11 @@ public final class SettingsActivity extends Activity {
         startGpsSwitch = findViewById(R.id.startGpsSwitch);
         weatherSwitch = findViewById(R.id.weatherSwitch);
         externalReturnSwitch = findViewById(R.id.externalReturnSwitch);
+        mediaSourceSpinner = findViewById(R.id.mediaSourceSpinner);
+        cameraScaleSpinner = findViewById(R.id.cameraScaleSpinner);
+        cameraAspectSpinner = findViewById(R.id.cameraAspectSpinner);
+        cameraWidthSeek = findViewById(R.id.cameraWidthSeek);
+        cameraWidthLabel = findViewById(R.id.cameraWidthLabel);
         layoutSpinner = findViewById(R.id.layoutSpinner);
         themeSpinner = findViewById(R.id.themeSpinner);
         dimModeSpinner = findViewById(R.id.dimModeSpinner);
@@ -107,6 +125,12 @@ public final class SettingsActivity extends Activity {
     }
 
     private void configureSpinners() {
+        mediaSourceSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
+                new String[]{"Mediabron: Spotify", "Mediabron: lokale muziek", "Mediabron: automatisch"}));
+        cameraScaleSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
+                new String[]{"Camera: volledig beeld (geen vervorming)", "Camera: paneel vullen (bijsnijden)"}));
+        cameraAspectSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
+                new String[]{"Cameraformaat: automatisch", "Cameraformaat: 4:3", "Cameraformaat: 16:9"}));
         layoutSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
                 new String[]{"Layout: automatisch", "Layout: compact", "Layout: medium", "Layout: large"}));
         themeSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
@@ -122,6 +146,13 @@ public final class SettingsActivity extends Activity {
         startGpsSwitch.setChecked(prefs.getBoolean(PREF_START_GPS, true));
         weatherSwitch.setChecked(prefs.getBoolean(PREF_WEATHER, true));
         externalReturnSwitch.setChecked(prefs.getBoolean(PREF_EXTERNAL_RETURN_OVERLAY, true));
+        mediaSourceSpinner.setSelection(mediaSourceIndex(prefs.getString(PREF_MEDIA_SOURCE, MEDIA_SOURCE_SPOTIFY)));
+        cameraScaleSpinner.setSelection(CameraPreviewController.SCALE_FILL.equals(
+                prefs.getString(PREF_CAMERA_SCALE, CameraPreviewController.SCALE_FIT)) ? 1 : 0);
+        String cameraAspect = prefs.getString(PREF_CAMERA_ASPECT, CameraPreviewController.ASPECT_AUTO);
+        cameraAspectSpinner.setSelection(CameraPreviewController.ASPECT_4_3.equals(cameraAspect) ? 1
+                : CameraPreviewController.ASPECT_16_9.equals(cameraAspect) ? 2 : 0);
+        cameraWidthSeek.setProgress(Math.max(45, prefs.getInt(PREF_CAMERA_WIDTH_PERCENT, 100)) - 45);
         layoutSpinner.setSelection(layoutIndex(prefs.getString(PREF_LAYOUT_SIZE, "auto")));
         themeSpinner.setSelection(themeIndex(prefs.getString(ThemeManager.PREF_THEME, ThemeManager.THEME_BLUE)));
         dimModeSpinner.setSelection(dimModeIndex(prefs.getString(PREF_DIM_MODE, DIM_MODE_OFF)));
@@ -151,6 +182,31 @@ public final class SettingsActivity extends Activity {
             if (!checked) stopService(new Intent(this, ExternalAppOverlayService.class)
                     .setAction(ExternalAppOverlayService.ACTION_STOP));
             refreshStatus();
+        });
+
+        mediaSourceSpinner.setOnItemSelectedListener(new SelectionListener(position -> {
+            if (binding) return;
+            prefs.edit().putString(PREF_MEDIA_SOURCE,
+                    new String[]{MEDIA_SOURCE_SPOTIFY, MEDIA_SOURCE_LOCAL, MEDIA_SOURCE_AUTO}[position]).apply();
+        }));
+        cameraScaleSpinner.setOnItemSelectedListener(new SelectionListener(position -> {
+            if (binding) return;
+            prefs.edit().putString(PREF_CAMERA_SCALE, position == 1
+                    ? CameraPreviewController.SCALE_FILL : CameraPreviewController.SCALE_FIT).apply();
+        }));
+        cameraAspectSpinner.setOnItemSelectedListener(new SelectionListener(position -> {
+            if (binding) return;
+            prefs.edit().putString(PREF_CAMERA_ASPECT,
+                    new String[]{CameraPreviewController.ASPECT_AUTO, CameraPreviewController.ASPECT_4_3,
+                            CameraPreviewController.ASPECT_16_9}[position]).apply();
+        }));
+        cameraWidthSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                prefs.edit().putInt(PREF_CAMERA_WIDTH_PERCENT, progress + 45).apply();
+                refreshLabels();
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) { }
+            @Override public void onStopTrackingTouch(SeekBar seekBar) { }
         });
 
         layoutSpinner.setOnItemSelectedListener(new SelectionListener(position -> {
@@ -190,21 +246,24 @@ public final class SettingsActivity extends Activity {
         findViewById(R.id.applyAccentButton).setOnClickListener(v -> applyCustomAccent());
         findViewById(R.id.cameraSettingsButton).setOnClickListener(v ->
                 startActivity(new Intent(this, CameraSelectionActivity.class)));
+        findViewById(R.id.localMediaButton).setOnClickListener(v ->
+                startActivity(new Intent(this, LocalMediaActivity.class)));
         findViewById(R.id.overlayPermissionButton).setOnClickListener(v -> openOverlayPermission());
         findViewById(R.id.mediaPermissionButton).setOnClickListener(v -> {
-            try { startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)); }
-            catch (RuntimeException e) { startActivity(new Intent(Settings.ACTION_SETTINGS)); }
+            Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
+            if (!ExternalAppLauncher.launch(this, intent, "↩ RaspiCar", true))
+                ExternalAppLauncher.launch(this, new Intent(Settings.ACTION_SETTINGS), "↩ RaspiCar", true);
         });
         findViewById(R.id.locationPermissionButton).setOnClickListener(v -> requestPermissions(
                 new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 77));
         findViewById(R.id.cameraPermissionButton).setOnClickListener(v -> requestPermissions(
                 new String[]{Manifest.permission.CAMERA}, 78));
         findViewById(R.id.homeSettingsButton).setOnClickListener(v -> {
-            try { startActivity(new Intent(Settings.ACTION_HOME_SETTINGS)); }
-            catch (RuntimeException e) { startActivity(new Intent(Settings.ACTION_SETTINGS)); }
+            Intent intent = new Intent(Settings.ACTION_HOME_SETTINGS);
+            ExternalAppLauncher.launch(this, intent, "↩ RaspiCar", true);
         });
         findViewById(R.id.androidSettingsButton).setOnClickListener(v ->
-                startActivity(new Intent(Settings.ACTION_SETTINGS)));
+                ExternalAppLauncher.launch(this, new Intent(Settings.ACTION_SETTINGS), "↩ RaspiCar", true));
         findViewById(R.id.testSplitButton).setOnClickListener(v -> {
             startActivity(new Intent(this, DashboardActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -258,6 +317,8 @@ public final class SettingsActivity extends Activity {
                 && Settings.canDrawOverlays(this));
         binding = false;
         updateDimOverlay();
+        stopService(new Intent(this, ExternalAppOverlayService.class)
+                .setAction(ExternalAppOverlayService.ACTION_STOP));
     }
 
     private void openOverlayPermission() {
@@ -281,6 +342,7 @@ public final class SettingsActivity extends Activity {
         nightDimLabel.setText("Automatisch ’s nachts: " + nightDimSeek.getProgress() + "%");
         int offset = sunOffsetSeek.getProgress() - 120;
         sunOffsetLabel.setText("Zonmoment verschuiven: " + (offset > 0 ? "+" : "") + offset + " minuten");
+        cameraWidthLabel.setText("Camerabreedte in paneel: " + (cameraWidthSeek.getProgress() + 45) + "%");
         String id = prefs.getString(PREF_CAMERA_ID, null);
         cameraSelectionText.setText(id == null ? "Nog geen camera gekozen" : "Gekozen camera: " + id
                 + (prefs.getBoolean(PREF_CAMERA_MIRROR, false) ? " • gespiegeld" : "")
@@ -291,8 +353,11 @@ public final class SettingsActivity extends Activity {
         if (statusText == null) return;
         StringBuilder status = new StringBuilder();
         status.append("Waze: ").append(isInstalled("com.waze") ? "gevonden" : "niet gevonden").append('\n');
-        status.append("GPS Connector: ").append(isInstalled("de.pilablu.gpsconnector") ? "gevonden" : "niet gevonden").append('\n');
+        boolean useGpsConnector = prefs.getBoolean(PREF_START_GPS, true);
+        status.append("Locatiebron: ").append(useGpsConnector ? "GPS Connector" : "ingebouwde Android-gps").append('\n');
+        if (useGpsConnector) status.append("GPS Connector: ").append(isInstalled("de.pilablu.gpsconnector") ? "gevonden" : "niet gevonden").append('\n');
         status.append("Spotify: ").append(isInstalled("com.spotify.music") ? "gevonden" : "niet gevonden").append('\n');
+        status.append("Lokale muziekmap: ").append(prefs.getString(PREF_LOCAL_MEDIA_TREE, null) != null ? "gekozen" : "niet gekozen").append('\n');
         status.append("Camera gekozen: ").append(prefs.getString(PREF_CAMERA_ID, null) != null ? "ja" : "nog kiezen").append('\n');
         status.append("Mediatoegang: ").append(hasNotificationAccess() ? "toegestaan" : "nog toestaan").append('\n');
         status.append("Locatie: ").append(checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -313,6 +378,12 @@ public final class SettingsActivity extends Activity {
     private boolean isInstalled(String packageName) {
         try { getPackageManager().getApplicationInfo(packageName, 0); return true; }
         catch (PackageManager.NameNotFoundException e) { return false; }
+    }
+
+    private int mediaSourceIndex(String value) {
+        if (MEDIA_SOURCE_LOCAL.equals(value)) return 1;
+        if (MEDIA_SOURCE_AUTO.equals(value)) return 2;
+        return 0;
     }
 
     private int layoutIndex(String value) {

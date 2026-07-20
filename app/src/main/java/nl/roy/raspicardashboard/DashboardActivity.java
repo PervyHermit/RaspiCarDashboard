@@ -3,19 +3,25 @@ package nl.roy.raspicardashboard;
 import android.Manifest;
 import android.app.Activity;
 import android.app.ActivityOptions;
+import android.content.BroadcastReceiver;
 import android.content.ClipData;
+import android.content.Context;
 import android.content.ComponentName;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.media.AudioManager;
 import android.media.MediaMetadata;
+import android.media.MediaMetadataRetriever;
 import android.media.session.MediaController;
 import android.media.session.MediaSessionManager;
 import android.media.session.PlaybackState;
@@ -36,6 +42,7 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -84,6 +91,9 @@ public final class DashboardActivity extends Activity implements LocationListene
     private TextView artistText;
     private TextView playPauseButton;
     private ProgressBar mediaProgress;
+    private SeekBar volumeSeek;
+    private TextView volumePercentText;
+    private AudioManager audioManager;
     private LinearLayout mediaPanel;
     private FrameLayout cameraPanel;
     private TextureView cameraPreview;
@@ -99,10 +109,36 @@ public final class DashboardActivity extends Activity implements LocationListene
     private MediaSessionManager mediaSessionManager;
     private MediaController spotifyMediaController;
     private boolean mediaListenerRegistered;
+
+    private boolean localHasTrack;
+    private boolean localPlaying;
+    private long localDuration;
+    private long localPosition;
+    private String localTitle = "Lokale muziek";
+    private String localArtist = "Kies een muziekmap";
+    private String localUri;
+    private String loadedLocalArtUri;
+    private boolean localReceiverRegistered;
     private boolean gpsPrimed;
     private boolean pendingInitialNavigation;
     private boolean initialNavigationScheduled;
     private long lastSplitRequest;
+
+    private final BroadcastReceiver localMediaReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            if (!LocalMediaPlaybackService.ACTION_STATE.equals(intent.getAction())) return;
+            localHasTrack = intent.getBooleanExtra(LocalMediaPlaybackService.EXTRA_HAS_TRACK, false);
+            localPlaying = intent.getBooleanExtra(LocalMediaPlaybackService.EXTRA_PLAYING, false);
+            localDuration = intent.getLongExtra(LocalMediaPlaybackService.EXTRA_DURATION, 0L);
+            localPosition = intent.getLongExtra(LocalMediaPlaybackService.EXTRA_POSITION, 0L);
+            localTitle = intent.getStringExtra(LocalMediaPlaybackService.EXTRA_TITLE);
+            localArtist = intent.getStringExtra(LocalMediaPlaybackService.EXTRA_ARTIST);
+            localUri = intent.getStringExtra(LocalMediaPlaybackService.EXTRA_URI);
+            if (localTitle == null) localTitle = "Lokale muziek";
+            if (localArtist == null) localArtist = "Kies een muziekmap";
+            updateActiveMediaUi();
+        }
+    };
 
     private final Runnable clockRunnable = new Runnable() {
         @Override public void run() {
@@ -116,14 +152,15 @@ public final class DashboardActivity extends Activity implements LocationListene
     private final Runnable progressRunnable = new Runnable() {
         @Override public void run() {
             updateMediaProgress();
+            syncVolumeUi();
             handler.postDelayed(this, 1_000L);
         }
     };
 
     private final MediaSessionManager.OnActiveSessionsChangedListener sessionsChangedListener = this::selectSpotifyController;
     private final MediaController.Callback mediaCallback = new MediaController.Callback() {
-        @Override public void onMetadataChanged(MediaMetadata metadata) { updateMediaUi(); }
-        @Override public void onPlaybackStateChanged(PlaybackState state) { updateMediaUi(); }
+        @Override public void onMetadataChanged(MediaMetadata metadata) { updateActiveMediaUi(); }
+        @Override public void onPlaybackStateChanged(PlaybackState state) { updateActiveMediaUi(); }
         @Override public void onSessionDestroyed() { refreshMediaSessions(); }
     };
 
@@ -148,6 +185,9 @@ public final class DashboardActivity extends Activity implements LocationListene
         buildFixedApps();
         rebuildCustomApps();
         configureMediaButtons();
+        configureVolumeControl();
+        registerLocalMediaReceiver();
+        requestLocalMediaState();
         ThemeManager.apply(this);
         tintProgress();
 
@@ -194,7 +234,11 @@ public final class DashboardActivity extends Activity implements LocationListene
         ThemeManager.apply(this);
         tintProgress();
         rebuildCustomApps();
+        buildFixedApps();
         refreshMediaSessions();
+        requestLocalMediaState();
+        syncVolumeUi();
+        applyCameraPreviewWidth();
         resumeDimOverlayIfNeeded();
         stopService(new Intent(this, ExternalAppOverlayService.class)
                 .setAction(ExternalAppOverlayService.ACTION_STOP));
@@ -234,40 +278,51 @@ public final class DashboardActivity extends Activity implements LocationListene
         artistText = findViewById(R.id.artistText);
         playPauseButton = findViewById(R.id.playPauseButton);
         mediaProgress = findViewById(R.id.mediaProgress);
+        volumeSeek = findViewById(R.id.volumeSeek);
+        volumePercentText = findViewById(R.id.volumePercentText);
         mediaPanel = findViewById(R.id.mediaPanel);
         cameraPanel = findViewById(R.id.cameraPanel);
         cameraPreview = findViewById(R.id.cameraPreview);
         cameraStatus = findViewById(R.id.cameraStatus);
         findViewById(R.id.openWazeButton).setOnClickListener(v -> openNavigation());
-        findViewById(R.id.backToMediaButton).setOnClickListener(v -> showSpotifyPanel());
+        findViewById(R.id.backToMediaButton).setOnClickListener(v -> showMediaPanel());
         findViewById(R.id.cameraMirrorButton).setOnClickListener(v -> toggleCameraMirror());
+        modeTitle.setOnClickListener(v -> cycleMediaSource());
     }
 
     private void configureMediaButtons() {
-        findViewById(R.id.previousButton).setOnClickListener(v -> {
-            if (spotifyMediaController != null) spotifyMediaController.getTransportControls().skipToPrevious();
-            else handleNoSpotifySession();
-        });
-        playPauseButton.setOnClickListener(v -> {
-            if (spotifyMediaController == null) {
-                handleNoSpotifySession();
-                return;
-            }
-            PlaybackState state = spotifyMediaController.getPlaybackState();
-            if (state != null && state.getState() == PlaybackState.STATE_PLAYING) {
-                spotifyMediaController.getTransportControls().pause();
-            } else {
-                spotifyMediaController.getTransportControls().play();
-            }
-        });
-        findViewById(R.id.nextButton).setOnClickListener(v -> {
-            if (spotifyMediaController != null) spotifyMediaController.getTransportControls().skipToNext();
-            else handleNoSpotifySession();
-        });
-        View.OnClickListener openSpotify = v -> launchSpotifyWithReturn();
-        albumArt.setOnClickListener(openSpotify);
-        trackTitle.setOnClickListener(openSpotify);
-        artistText.setOnClickListener(openSpotify);
+        findViewById(R.id.previousButton).setOnClickListener(v -> controlPrevious());
+        playPauseButton.setOnClickListener(v -> controlPlayPause());
+        findViewById(R.id.nextButton).setOnClickListener(v -> controlNext());
+        View.OnClickListener openSource = v -> openCurrentMediaSource();
+        albumArt.setOnClickListener(openSource);
+        trackTitle.setOnClickListener(openSource);
+        artistText.setOnClickListener(openSource);
+    }
+
+    private void controlPrevious() {
+        if (isLocalSourceActive()) sendLocalMediaAction(LocalMediaPlaybackService.ACTION_PREVIOUS);
+        else if (spotifyMediaController != null) spotifyMediaController.getTransportControls().skipToPrevious();
+        else handleNoSpotifySession();
+    }
+
+    private void controlPlayPause() {
+        if (isLocalSourceActive()) {
+            if (!localHasTrack) openLocalMediaLibrary();
+            else sendLocalMediaAction(LocalMediaPlaybackService.ACTION_PLAY_PAUSE);
+            return;
+        }
+        if (spotifyMediaController == null) { handleNoSpotifySession(); return; }
+        PlaybackState state = spotifyMediaController.getPlaybackState();
+        if (state != null && state.getState() == PlaybackState.STATE_PLAYING)
+            spotifyMediaController.getTransportControls().pause();
+        else spotifyMediaController.getTransportControls().play();
+    }
+
+    private void controlNext() {
+        if (isLocalSourceActive()) sendLocalMediaAction(LocalMediaPlaybackService.ACTION_NEXT);
+        else if (spotifyMediaController != null) spotifyMediaController.getTransportControls().skipToNext();
+        else handleNoSpotifySession();
     }
 
     private void handleNoSpotifySession() {
@@ -275,14 +330,47 @@ public final class DashboardActivity extends Activity implements LocationListene
         else launchSpotifyWithReturn();
     }
 
+    private void openCurrentMediaSource() {
+        if (isLocalSourceActive()) openLocalMediaLibrary();
+        else launchSpotifyWithReturn();
+    }
+
+    private void openLocalMediaLibrary() {
+        startActivity(new Intent(this, LocalMediaActivity.class));
+    }
+
+    private void cycleMediaSource() {
+        String source = prefs.getString(SettingsActivity.PREF_MEDIA_SOURCE, SettingsActivity.MEDIA_SOURCE_SPOTIFY);
+        String next;
+        if (SettingsActivity.MEDIA_SOURCE_SPOTIFY.equals(source)) next = SettingsActivity.MEDIA_SOURCE_LOCAL;
+        else if (SettingsActivity.MEDIA_SOURCE_LOCAL.equals(source)) next = SettingsActivity.MEDIA_SOURCE_AUTO;
+        else next = SettingsActivity.MEDIA_SOURCE_SPOTIFY;
+        prefs.edit().putString(SettingsActivity.PREF_MEDIA_SOURCE, next).apply();
+        updateActiveMediaUi();
+        buildFixedApps();
+        Toast.makeText(this, "Mediabron: " + mediaSourceLabel(next), Toast.LENGTH_SHORT).show();
+    }
+
+    private String mediaSourceLabel(String source) {
+        if (SettingsActivity.MEDIA_SOURCE_LOCAL.equals(source)) return "Lokale muziek";
+        if (SettingsActivity.MEDIA_SOURCE_AUTO.equals(source)) return "Automatisch";
+        return "Spotify";
+    }
+
     private void buildFixedApps() {
         fixedAppsContainer.removeAllViews();
-        fixedAppsContainer.addView(createAppButton("GPS Connector", GPS_CONNECTOR_PACKAGE, 0,
-                v -> launchPackage(GPS_CONNECTOR_PACKAGE)));
+        boolean externalGps = prefs.getBoolean(SettingsActivity.PREF_START_GPS, true);
+        if (externalGps) {
+            fixedAppsContainer.addView(createAppButton("GPS Connector", GPS_CONNECTOR_PACKAGE, 0,
+                    v -> launchPackage(GPS_CONNECTOR_PACKAGE)));
+        } else {
+            fixedAppsContainer.addView(createAppButton("Waze", WAZE_PACKAGE, 0, v -> openNavigation()));
+        }
         fixedAppsContainer.addView(createAppButton("Camera", null, R.drawable.ic_camera,
                 v -> toggleCameraPanel()));
-        fixedAppsContainer.addView(createAppButton("Spotify", SPOTIFY_PACKAGE, 0,
-                v -> launchSpotifyWithReturn()));
+        boolean local = isLocalSourceActive();
+        fixedAppsContainer.addView(createAppButton("Muziek", local ? null : SPOTIFY_PACKAGE,
+                local ? R.drawable.ic_music : 0, v -> openCurrentMediaSource()));
         fixedAppsContainer.addView(createAppButton("Instellingen", null, R.drawable.ic_settings,
                 v -> startActivity(new Intent(this, SettingsActivity.class))));
         ThemeManager.apply(this);
@@ -446,7 +534,7 @@ public final class DashboardActivity extends Activity implements LocationListene
     }
 
     private void toggleCameraPanel() {
-        if (cameraMode) showSpotifyPanel();
+        if (cameraMode) showMediaPanel();
         else showCameraPanel();
     }
 
@@ -462,12 +550,12 @@ public final class DashboardActivity extends Activity implements LocationListene
         startSelectedCamera();
     }
 
-    private void showSpotifyPanel() {
+    private void showMediaPanel() {
         cameraMode = false;
         if (cameraController != null) cameraController.stop();
         cameraPanel.setVisibility(View.GONE);
         mediaPanel.setVisibility(View.VISIBLE);
-        modeTitle.setText("SPOTIFY");
+        updateActiveMediaUi();
     }
 
     private void startSelectedCamera() {
@@ -475,14 +563,31 @@ public final class DashboardActivity extends Activity implements LocationListene
         String cameraId = prefs.getString(SettingsActivity.PREF_CAMERA_ID, null);
         boolean mirror = prefs.getBoolean(SettingsActivity.PREF_CAMERA_MIRROR, false);
         int rotation = prefs.getInt(SettingsActivity.PREF_CAMERA_ROTATION, 0);
-        cameraController.start(cameraId, mirror, rotation);
+        String scale = prefs.getString(SettingsActivity.PREF_CAMERA_SCALE, CameraPreviewController.SCALE_FIT);
+        String aspect = prefs.getString(SettingsActivity.PREF_CAMERA_ASPECT, CameraPreviewController.ASPECT_AUTO);
+        applyCameraPreviewWidth();
+        cameraController.start(cameraId, mirror, rotation, scale, aspect);
     }
 
     private void toggleCameraMirror() {
         boolean mirror = !prefs.getBoolean(SettingsActivity.PREF_CAMERA_MIRROR, false);
         prefs.edit().putBoolean(SettingsActivity.PREF_CAMERA_MIRROR, mirror).apply();
-        cameraPreview.setScaleX(mirror ? -1f : 1f);
+        startSelectedCamera();
         Toast.makeText(this, mirror ? "Camera gespiegeld" : "Spiegeling uit", Toast.LENGTH_SHORT).show();
+    }
+
+    private void applyCameraPreviewWidth() {
+        if (cameraPreview == null || cameraPanel == null) return;
+        int percent = Math.max(45, Math.min(100, prefs.getInt(SettingsActivity.PREF_CAMERA_WIDTH_PERCENT, 100)));
+        cameraPanel.post(() -> {
+            int available = cameraPanel.getWidth();
+            if (available <= 0) return;
+            FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) cameraPreview.getLayoutParams();
+            params.width = Math.max(dp(120), available * percent / 100);
+            params.height = ViewGroup.LayoutParams.MATCH_PARENT;
+            params.gravity = Gravity.CENTER;
+            cameraPreview.setLayoutParams(params);
+        });
     }
 
     public void openNavigation() {
@@ -535,30 +640,13 @@ public final class DashboardActivity extends Activity implements LocationListene
             Toast.makeText(this, "Spotify is niet geïnstalleerd", Toast.LENGTH_SHORT).show();
             return;
         }
-        showExternalReturnOverlay("↩ Dashboard");
         launchPackage(SPOTIFY_PACKAGE);
     }
 
-    private void showExternalReturnOverlay(String label) {
-        if (!prefs.getBoolean(SettingsActivity.PREF_EXTERNAL_RETURN_OVERLAY, true)) return;
-        if (!Settings.canDrawOverlays(this)) {
-            Toast.makeText(this, "Geef overlaytoegang voor de zwevende terugknop.", Toast.LENGTH_LONG).show();
-            return;
-        }
-        startService(new Intent(this, ExternalAppOverlayService.class)
-                .setAction(ExternalAppOverlayService.ACTION_SHOW)
-                .putExtra(ExternalAppOverlayService.EXTRA_LABEL, label));
-    }
-
     private void launchPackage(String packageName) {
-        Intent launch = getPackageManager().getLaunchIntentForPackage(packageName);
-        if (launch == null) {
+        if (!ExternalAppLauncher.launchPackage(this, packageName)) {
             Toast.makeText(this, loadAppLabel(packageName) + " is niet geïnstalleerd", Toast.LENGTH_SHORT).show();
-            return;
         }
-        launch.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-        try { startActivity(launch); }
-        catch (RuntimeException e) { Toast.makeText(this, "App kon niet worden geopend", Toast.LENGTH_SHORT).show(); }
     }
 
     private Drawable loadAppIcon(String packageName) {
@@ -654,7 +742,7 @@ public final class DashboardActivity extends Activity implements LocationListene
                 connection = (HttpURLConnection) new URL(endpoint).openConnection();
                 connection.setConnectTimeout(7_000);
                 connection.setReadTimeout(7_000);
-                connection.setRequestProperty("User-Agent", "RaspiCarDashboard/3.0");
+                connection.setRequestProperty("User-Agent", "RaspiCarDashboard/4.0");
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
                     StringBuilder json = new StringBuilder();
                     String line;
@@ -693,9 +781,7 @@ public final class DashboardActivity extends Activity implements LocationListene
     private void refreshMediaSessions() {
         if (!hasNotificationAccess()) {
             clearSpotifyController();
-            trackTitle.setText(R.string.tap_for_media_access);
-            artistText.setText("Instellingen → mediatoegang");
-            playPauseButton.setText("▶");
+            updateActiveMediaUi();
             return;
         }
         if (mediaSessionManager == null) mediaSessionManager = (MediaSessionManager) getSystemService(MEDIA_SESSION_SERVICE);
@@ -708,7 +794,7 @@ public final class DashboardActivity extends Activity implements LocationListene
             selectSpotifyController(mediaSessionManager.getActiveSessions(listener));
         } catch (SecurityException e) {
             clearSpotifyController();
-            trackTitle.setText(R.string.tap_for_media_access);
+            updateActiveMediaUi();
         }
     }
 
@@ -729,7 +815,7 @@ public final class DashboardActivity extends Activity implements LocationListene
         }
         spotifyMediaController = selected;
         if (spotifyMediaController != null) spotifyMediaController.registerCallback(mediaCallback, handler);
-        updateMediaUi();
+        updateActiveMediaUi();
     }
 
     private void clearSpotifyController() {
@@ -739,10 +825,32 @@ public final class DashboardActivity extends Activity implements LocationListene
         spotifyMediaController = null;
     }
 
-    private void updateMediaUi() {
+    private boolean isLocalSourceActive() {
+        String source = prefs.getString(SettingsActivity.PREF_MEDIA_SOURCE, SettingsActivity.MEDIA_SOURCE_SPOTIFY);
+        if (SettingsActivity.MEDIA_SOURCE_LOCAL.equals(source)) return true;
+        if (SettingsActivity.MEDIA_SOURCE_SPOTIFY.equals(source)) return false;
+        PlaybackState spotifyState = spotifyMediaController == null ? null : spotifyMediaController.getPlaybackState();
+        boolean spotifyPlaying = spotifyState != null && spotifyState.getState() == PlaybackState.STATE_PLAYING;
+        if (localPlaying) return true;
+        if (spotifyPlaying) return false;
+        return localHasTrack;
+    }
+
+    private void updateActiveMediaUi() {
+        if (cameraMode) return;
+        boolean local = isLocalSourceActive();
+        String configured = prefs.getString(SettingsActivity.PREF_MEDIA_SOURCE, SettingsActivity.MEDIA_SOURCE_SPOTIFY);
+        if (SettingsActivity.MEDIA_SOURCE_AUTO.equals(configured))
+            modeTitle.setText(local ? "AUTO · LOKAAL  ▾" : "AUTO · SPOTIFY  ▾");
+        else modeTitle.setText(local ? "LOKALE MUZIEK  ▾" : "SPOTIFY  ▾");
+        if (local) updateLocalMediaUi();
+        else updateSpotifyMediaUi();
+    }
+
+    private void updateSpotifyMediaUi() {
         if (spotifyMediaController == null) {
-            trackTitle.setText("Spotify niet actief");
-            artistText.setText("Tik op Spotify om muziek te kiezen");
+            trackTitle.setText(hasNotificationAccess() ? "Spotify niet actief" : getString(R.string.tap_for_media_access));
+            artistText.setText(hasNotificationAccess() ? "Tik om Spotify te openen" : "Instellingen → mediatoegang");
             albumArt.setImageDrawable(loadAppIcon(SPOTIFY_PACKAGE));
             playPauseButton.setText("▶");
             mediaProgress.setProgress(0);
@@ -768,7 +876,49 @@ public final class DashboardActivity extends Activity implements LocationListene
         updateMediaProgress();
     }
 
+    private void updateLocalMediaUi() {
+        trackTitle.setText(localHasTrack ? localTitle : "Lokale muziek");
+        artistText.setText(localHasTrack ? localArtist : "Tik om een muziekmap te kiezen");
+        playPauseButton.setText(localPlaying ? "Ⅱ" : "▶");
+        mediaProgress.setProgress(localDuration > 0
+                ? (int) Math.max(0, Math.min(1000, localPosition * 1000L / localDuration)) : 0);
+        if (localUri == null) {
+            loadedLocalArtUri = null;
+            albumArt.setImageResource(R.drawable.ic_music);
+        } else if (!localUri.equals(loadedLocalArtUri)) {
+            loadedLocalArtUri = localUri;
+            loadLocalAlbumArt(localUri);
+        }
+    }
+
+    private void loadLocalAlbumArt(String uriText) {
+        networkExecutor.submit(() -> {
+            Bitmap art = null;
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+            try {
+                retriever.setDataSource(this, Uri.parse(uriText));
+                byte[] bytes = retriever.getEmbeddedPicture();
+                if (bytes != null) art = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+            } catch (RuntimeException ignored) {
+            } finally {
+                try { retriever.release(); } catch (RuntimeException ignored) { }
+            }
+            Bitmap result = art;
+            runOnUiThread(() -> {
+                if (!uriText.equals(localUri) || !isLocalSourceActive()) return;
+                if (result != null) albumArt.setImageBitmap(result);
+                else albumArt.setImageResource(R.drawable.ic_music);
+            });
+        });
+    }
+
     private void updateMediaProgress() {
+        if (isLocalSourceActive()) {
+            if (localPlaying) localPosition = Math.min(localDuration, localPosition + 1_000L);
+            mediaProgress.setProgress(localDuration > 0
+                    ? (int) Math.max(0, Math.min(1000, localPosition * 1000L / localDuration)) : 0);
+            return;
+        }
         if (spotifyMediaController == null) { mediaProgress.setProgress(0); return; }
         MediaMetadata metadata = spotifyMediaController.getMetadata();
         PlaybackState state = spotifyMediaController.getPlaybackState();
@@ -783,14 +933,76 @@ public final class DashboardActivity extends Activity implements LocationListene
                 ? (int) Math.max(0, Math.min(1000, position * 1000L / duration)) : 0);
     }
 
+    private void registerLocalMediaReceiver() {
+        if (localReceiverRegistered) return;
+        IntentFilter filter = new IntentFilter(LocalMediaPlaybackService.ACTION_STATE);
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(localMediaReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        else {
+            //noinspection UnspecifiedRegisterReceiverFlag
+            registerReceiver(localMediaReceiver, filter);
+        }
+        localReceiverRegistered = true;
+    }
+
+    private void requestLocalMediaState() {
+        try { startService(new Intent(this, LocalMediaPlaybackService.class)
+                .setAction(LocalMediaPlaybackService.ACTION_REQUEST_STATE)); }
+        catch (RuntimeException ignored) { }
+    }
+
+    private void sendLocalMediaAction(String action) {
+        try { startService(new Intent(this, LocalMediaPlaybackService.class).setAction(action)); }
+        catch (RuntimeException ignored) { }
+    }
+
+    private void configureVolumeControl() {
+        audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+        if (audioManager == null || volumeSeek == null) return;
+        volumeSeek.setMax(audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
+        syncVolumeUi();
+        volumeSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser) audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, progress, 0);
+                updateVolumeLabel(progress);
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) { }
+            @Override public void onStopTrackingTouch(SeekBar seekBar) { }
+        });
+        findViewById(R.id.volumeIcon).setOnClickListener(v -> {
+            int current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+            if (current > 0) {
+                prefs.edit().putInt("last_nonzero_volume", current).apply();
+                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0);
+            } else {
+                int restore = prefs.getInt("last_nonzero_volume", Math.max(1, volumeSeek.getMax() / 2));
+                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, restore, 0);
+            }
+            syncVolumeUi();
+        });
+    }
+
+    private void syncVolumeUi() {
+        if (audioManager == null || volumeSeek == null) return;
+        int current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+        volumeSeek.setProgress(current);
+        updateVolumeLabel(current);
+    }
+
+    private void updateVolumeLabel(int value) {
+        if (volumePercentText == null || volumeSeek == null) return;
+        int max = Math.max(1, volumeSeek.getMax());
+        volumePercentText.setText(Math.round(value * 100f / max) + "%");
+    }
+
     private boolean hasNotificationAccess() {
         String enabled = Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
         return enabled != null && enabled.contains(getPackageName());
     }
 
     private void openMediaAccessSettings() {
-        try { startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)); }
-        catch (RuntimeException e) { startActivity(new Intent(Settings.ACTION_SETTINGS)); }
+        Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
+        if (!ExternalAppLauncher.launch(this, intent, "↩ Dashboard", true))
+            ExternalAppLauncher.launch(this, new Intent(Settings.ACTION_SETTINGS), "↩ Dashboard", true);
     }
 
     private void resumeDimOverlayIfNeeded() {
@@ -832,22 +1044,24 @@ public final class DashboardActivity extends Activity implements LocationListene
         int headerHeight;
         int appsHeight;
         int shortcutHeight;
+        int volumeHeight;
         int footerHeight;
         int dynamicHeaderHeight;
         if (layoutProfile == LayoutProfile.COMPACT) {
             rootPadding = 4; headerHeight = 54; appsHeight = 74; shortcutHeight = 70;
-            footerHeight = 0; dynamicHeaderHeight = 40;
+            volumeHeight = 40; footerHeight = 0; dynamicHeaderHeight = 40;
         } else if (layoutProfile == LayoutProfile.LARGE) {
             rootPadding = 16; headerHeight = 108; appsHeight = 138; shortcutHeight = 130;
-            footerHeight = 28; dynamicHeaderHeight = 64;
+            volumeHeight = 60; footerHeight = 28; dynamicHeaderHeight = 64;
         } else {
             rootPadding = 12; headerHeight = 92; appsHeight = 122; shortcutHeight = 116;
-            footerHeight = 24; dynamicHeaderHeight = 58;
+            volumeHeight = 52; footerHeight = 24; dynamicHeaderHeight = 58;
         }
 
         View root = findViewById(R.id.root);
         root.setPadding(dp(rootPadding), dp(rootPadding), dp(rootPadding), dp(rootPadding));
         setViewHeight(R.id.headerCard, headerHeight);
+        setViewHeight(R.id.volumeCard, volumeHeight);
         setViewHeight(R.id.fixedAppsCard, appsHeight);
         setViewHeight(R.id.shortcutsCard, shortcutHeight);
         setViewHeight(R.id.footerText, footerHeight);
@@ -948,6 +1162,10 @@ public final class DashboardActivity extends Activity implements LocationListene
         if (mediaSessionManager != null && mediaListenerRegistered) {
             try { mediaSessionManager.removeOnActiveSessionsChangedListener(sessionsChangedListener); }
             catch (RuntimeException ignored) { }
+        }
+        if (localReceiverRegistered) {
+            try { unregisterReceiver(localMediaReceiver); } catch (RuntimeException ignored) { }
+            localReceiverRegistered = false;
         }
         networkExecutor.shutdownNow();
         super.onDestroy();

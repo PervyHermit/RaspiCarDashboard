@@ -1,19 +1,21 @@
-# Build V3 with GitHub Actions
+# Build V4 with GitHub Actions
 
-1. Copy the complete V3 update into the local `RaspiCarDashboard` repository.
-2. Commit and push the changed files with GitHub Desktop.
-3. Open the repository on GitHub.
-4. Open **Actions**.
-5. Select **Build debug APK**.
-6. Open the newest green workflow run.
-7. Download the artifact **RaspiCarDashboard-v3-debug**.
-8. Extract the artifact zip.
-9. Install `app-debug.apk` on the Android device.
+1. Copy the complete V4 update into the local `RaspiCarDashboard` repository.
+2. Confirm that `.github`, `app`, `docs`, `build.gradle` and `settings.gradle` are in the repository root.
+3. Do not place the private `.jks` file or signing credentials in the repository.
+4. Commit and push the changes to `main`.
+5. Open **Actions → Build debug APK** on GitHub.
+6. Wait for the workflow to finish with a green checkmark.
+7. Download the artifact **RaspiCarDashboard-v4-debug**.
+8. Extract `app-debug.apk` and install it on the Android device.
 
-## Signing
+## Updating V3
 
-Without signing secrets, GitHub builds a normal temporary debug APK. A later workflow run may use a different certificate and Android may refuse it as an update.
+When V3 was built with the same four persistent-signing secrets, V4 can install over V3 without uninstalling it:
 
-For repeatable updates, configure the four signing secrets described in `SIGNING_WITH_GITHUB.md` before building V3.
+- `RASPI_KEYSTORE_BASE64`
+- `RASPI_KEYSTORE_PASSWORD`
+- `RASPI_KEY_ALIAS`
+- `RASPI_KEY_PASSWORD`
 
-V2 used a different temporary debug certificate. Uninstall V2 before installing the persistently signed V3 APK.
+If Android reports an incompatible signature, the installed APK was signed with a different key. Do not delete the persistent key; it is required for all future updates.

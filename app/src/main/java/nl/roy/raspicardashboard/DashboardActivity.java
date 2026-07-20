@@ -901,7 +901,7 @@ public final class DashboardActivity extends Activity implements LocationListene
                 if (bytes != null) art = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
             } catch (RuntimeException ignored) {
             } finally {
-                try { retriever.release(); } catch (RuntimeException ignored) { }
+                try { retriever.release(); } catch (Exception ignored) { }
             }
             Bitmap result = art;
             runOnUiThread(() -> {

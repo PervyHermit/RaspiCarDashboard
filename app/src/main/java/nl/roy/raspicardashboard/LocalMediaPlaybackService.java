@@ -153,7 +153,7 @@ public final class LocalMediaPlaybackService extends Service {
                 artBytes = retriever.getEmbeddedPicture();
             } catch (RuntimeException ignored) {
             } finally {
-                try { retriever.release(); } catch (RuntimeException ignored) { }
+                try { retriever.release(); } catch (Exception ignored) { }
             }
             String finalTitle = title;
             String finalArtist = artist;

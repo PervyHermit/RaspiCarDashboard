@@ -25,11 +25,6 @@ public final class SettingsActivity extends Activity {
     static final String PREF_START_GPS = "start_gps_connector";
     static final String PREF_WEATHER = "weather_enabled";
     static final String PREF_EXTERNAL_RETURN_OVERLAY = "external_return_overlay";
-    static final String PREF_MEDIA_SOURCE = "media_source";
-    static final String PREF_LOCAL_MEDIA_TREE = "local_media_tree";
-    static final String MEDIA_SOURCE_SPOTIFY = "spotify";
-    static final String MEDIA_SOURCE_LOCAL = "local";
-    static final String MEDIA_SOURCE_AUTO = "auto";
     static final String PREF_LAYOUT_SIZE = "layout_size";
     static final String PREF_CAMERA_ID = "camera_id";
     static final String PREF_CAMERA_MIRROR = "camera_mirror";
@@ -56,7 +51,6 @@ public final class SettingsActivity extends Activity {
     private Switch startGpsSwitch;
     private Switch weatherSwitch;
     private Switch externalReturnSwitch;
-    private Spinner mediaSourceSpinner;
     private Spinner cameraScaleSpinner;
     private Spinner cameraAspectSpinner;
     private SeekBar cameraWidthSeek;
@@ -109,7 +103,6 @@ public final class SettingsActivity extends Activity {
         startGpsSwitch = findViewById(R.id.startGpsSwitch);
         weatherSwitch = findViewById(R.id.weatherSwitch);
         externalReturnSwitch = findViewById(R.id.externalReturnSwitch);
-        mediaSourceSpinner = findViewById(R.id.mediaSourceSpinner);
         cameraScaleSpinner = findViewById(R.id.cameraScaleSpinner);
         cameraAspectSpinner = findViewById(R.id.cameraAspectSpinner);
         cameraWidthSeek = findViewById(R.id.cameraWidthSeek);
@@ -135,8 +128,6 @@ public final class SettingsActivity extends Activity {
     }
 
     private void configureSpinners() {
-        mediaSourceSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
-                new String[]{"Mediabron: Spotify", "Mediabron: lokale muziek", "Mediabron: automatisch"}));
         cameraScaleSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
                 new String[]{"Camera: volledig beeld (geen vervorming)", "Camera: paneel vullen (bijsnijden)"}));
         cameraAspectSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
@@ -156,7 +147,6 @@ public final class SettingsActivity extends Activity {
         startGpsSwitch.setChecked(prefs.getBoolean(PREF_START_GPS, true));
         weatherSwitch.setChecked(prefs.getBoolean(PREF_WEATHER, true));
         externalReturnSwitch.setChecked(prefs.getBoolean(PREF_EXTERNAL_RETURN_OVERLAY, true));
-        mediaSourceSpinner.setSelection(mediaSourceIndex(prefs.getString(PREF_MEDIA_SOURCE, MEDIA_SOURCE_SPOTIFY)));
         cameraScaleSpinner.setSelection(CameraPreviewController.SCALE_FILL.equals(
                 prefs.getString(PREF_CAMERA_SCALE, CameraPreviewController.SCALE_FIT)) ? 1 : 0);
         String cameraAspect = prefs.getString(PREF_CAMERA_ASPECT, CameraPreviewController.ASPECT_AUTO);
@@ -198,11 +188,6 @@ public final class SettingsActivity extends Activity {
             refreshStatus();
         });
 
-        mediaSourceSpinner.setOnItemSelectedListener(new SelectionListener(position -> {
-            if (binding) return;
-            prefs.edit().putString(PREF_MEDIA_SOURCE,
-                    new String[]{MEDIA_SOURCE_SPOTIFY, MEDIA_SOURCE_LOCAL, MEDIA_SOURCE_AUTO}[position]).apply();
-        }));
         cameraScaleSpinner.setOnItemSelectedListener(new SelectionListener(position -> {
             if (binding) return;
             prefs.edit().putString(PREF_CAMERA_SCALE, position == 1
@@ -262,8 +247,6 @@ public final class SettingsActivity extends Activity {
         findViewById(R.id.applyAccentButton).setOnClickListener(v -> applyCustomAccent());
         findViewById(R.id.cameraSettingsButton).setOnClickListener(v ->
                 startActivity(new Intent(this, CameraSelectionActivity.class)));
-        findViewById(R.id.localMediaButton).setOnClickListener(v ->
-                startActivity(new Intent(this, LocalMediaActivity.class)));
         findViewById(R.id.overlayPermissionButton).setOnClickListener(v -> openOverlayPermission());
         findViewById(R.id.mediaPermissionButton).setOnClickListener(v -> {
             Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
@@ -344,8 +327,7 @@ public final class SettingsActivity extends Activity {
                 && Settings.canDrawOverlays(this));
         binding = false;
         updateDimOverlay();
-        stopService(new Intent(this, ExternalAppOverlayService.class)
-                .setAction(ExternalAppOverlayService.ACTION_STOP));
+        ExternalAppLauncher.showReturnOverlay(this, "↩ HUD");
     }
 
     private void openOverlayPermission() {
@@ -386,7 +368,6 @@ public final class SettingsActivity extends Activity {
         status.append("Locatiebron: ").append(useGpsConnector ? "GPS Connector" : "ingebouwde Android-gps").append('\n');
         if (useGpsConnector) status.append("GPS Connector: ").append(isInstalled("de.pilablu.gpsconnector") ? "gevonden" : "niet gevonden").append('\n');
         status.append("Spotify: ").append(isInstalled("com.spotify.music") ? "gevonden" : "niet gevonden").append('\n');
-        status.append("Lokale muziekmap: ").append(prefs.getString(PREF_LOCAL_MEDIA_TREE, null) != null ? "gekozen" : "niet gekozen").append('\n');
         status.append("Camera gekozen: ").append(prefs.getString(PREF_CAMERA_ID, null) != null ? "ja" : "nog kiezen").append('\n');
         status.append("Mediatoegang: ").append(hasNotificationAccess() ? "toegestaan" : "nog toestaan").append('\n');
         status.append("Locatie: ").append(checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -407,12 +388,6 @@ public final class SettingsActivity extends Activity {
     private boolean isInstalled(String packageName) {
         try { getPackageManager().getApplicationInfo(packageName, 0); return true; }
         catch (PackageManager.NameNotFoundException e) { return false; }
-    }
-
-    private int mediaSourceIndex(String value) {
-        if (MEDIA_SOURCE_LOCAL.equals(value)) return 1;
-        if (MEDIA_SOURCE_AUTO.equals(value)) return 2;
-        return 0;
     }
 
     private int layoutIndex(String value) {

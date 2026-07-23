@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Rect;
+import android.os.Build;
 import android.provider.Settings;
 import android.widget.Toast;
 
@@ -16,19 +17,32 @@ public final class ExternalAppLauncher {
     public static boolean launchPackage(Activity activity, String packageName) {
         Intent launch = activity.getPackageManager().getLaunchIntentForPackage(packageName);
         if (launch == null) return false;
-        launch.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NEW_TASK
-                | Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        launch.setFlags(launch.getFlags()
+                & ~Intent.FLAG_ACTIVITY_NEW_TASK
+                & ~Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
+        launch.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NO_ANIMATION);
         return launch(activity, launch, "↩ Dashboard", true);
     }
 
     public static boolean launch(Activity activity, Intent intent, String label, boolean showReturnButton) {
         if (showReturnButton) showReturnOverlay(activity, label);
         try {
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
-            Rect full = activity.getWindowManager().getMaximumWindowMetrics().getBounds();
-            int left = full.left + Math.round(full.width() * 0.35f);
+            intent.setFlags(intent.getFlags()
+                    & ~Intent.FLAG_ACTIVITY_NEW_TASK
+                    & ~Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
+            intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+            Rect full;
+            if (Build.VERSION.SDK_INT >= 30) {
+                full = activity.getWindowManager().getMaximumWindowMetrics().getBounds();
+            } else {
+                android.util.DisplayMetrics metrics = new android.util.DisplayMetrics();
+                //noinspection deprecation
+                activity.getWindowManager().getDefaultDisplay().getMetrics(metrics);
+                full = new Rect(0, 0, metrics.widthPixels, metrics.heightPixels);
+            }
+            int right = full.left + Math.round(full.width() * 0.35f);
             ActivityOptions options = ActivityOptions.makeBasic();
-            options.setLaunchBounds(new Rect(left, full.top, full.right, full.bottom));
+            options.setLaunchBounds(new Rect(full.left, full.top, right, full.bottom));
             activity.startActivity(intent, options.toBundle());
             return true;
         } catch (RuntimeException e) {

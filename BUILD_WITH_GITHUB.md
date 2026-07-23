@@ -1,17 +1,17 @@
-# Build V5 with GitHub Actions
+# Build V5.1 with GitHub Actions
 
-1. Copy the complete V5 update into the local `RaspiCarDashboard` repository.
+1. Copy the complete V5.1 update into the local `RaspiCarDashboard` repository.
 2. Confirm that `.github`, `app`, `docs`, `build.gradle` and `settings.gradle` are in the repository root.
 3. Do not place the private `.jks` file or signing credentials in the repository.
 4. Commit and push the changes to `main`.
 5. Open **Actions → Build debug APK** on GitHub.
 6. Wait for the workflow to finish with a green checkmark.
-7. Download the artifact **RaspiCarDashboard-v5-debug**.
+7. Download the artifact **RaspiCarDashboard-v5.1-debug**.
 8. Extract `app-debug.apk` and install it on the Android device.
 
 ## Updating V3
 
-When V4 was built with the same four persistent-signing secrets, V5 can install over V4 without uninstalling it:
+When V5 was built with the same four persistent-signing secrets, V5.1 can install over V5 without uninstalling it:
 
 - `RASPI_KEYSTORE_BASE64`
 - `RASPI_KEYSTORE_PASSWORD`

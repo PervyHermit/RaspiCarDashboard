@@ -1,5 +1,16 @@
 # Changelog
 
+## V5.1 — 5.1.0
+
+- Kept Waze on the right while user-launched apps replace the HUD on the left.
+- Kept the draggable return-to-HUD overlay above external apps, the Apps drawer and RaspiCar settings.
+- Moved Apps into the six-icon fixed row: Camera, Spotify, Volume, Waze, Apps and Settings.
+- Expanded the personal shortcut row to six user slots.
+- Moved volume below the media/camera panel and made the fixed Volume button show or hide the slider.
+- Made the setup preview persist setup completion, while retaining the explicit rerun option in Settings.
+- Removed the built-in local-media activity, library and playback service.
+- Removed synchronous camera-thread waiting and moved Camera2 opening/closing work off the UI thread to prevent repeated ANR dialogs.
+
 ## V5 — 5.0.0
 
 - Rebuilt the dashboard as a compact vertical stack: time/weather/speed, volume, camera/media and one combined app card.

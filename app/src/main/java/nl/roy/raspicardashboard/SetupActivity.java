@@ -85,9 +85,9 @@ public final class SetupActivity extends Activity {
     }
 
     private void renderWelcome() {
-        title.setText("Welkom bij RaspiCar V4");
-        description.setText("We lopen locatie, apps, toestemmingen, muziek, camera, layout en Waze stap voor stap langs.");
-        addLargeText("RaspiCar gebruikt links een eigen dashboard en opent Waze rechts in split-screen. Kies Spotify, lokale muziek of automatisch; de USB-camera kan rechtstreeks in het dashboard worden getoond.");
+        title.setText("Welkom bij RaspiCar");
+        description.setText("We lopen locatie, apps, toestemmingen, camera, layout en Waze stap voor stap langs.");
+        addLargeText("RaspiCar gebruikt links een eigen dashboard en houdt Waze rechts in split-screen. Spotify wordt vanuit het dashboard bediend; andere media-apps kun je als snelkoppeling toevoegen.");
         addInfo("Je kunt deze setup later opnieuw openen vanuit RaspiCar-instellingen.");
     }
 
@@ -110,21 +110,7 @@ public final class SetupActivity extends Activity {
         addAppRow("Waze", WAZE, true);
         if (useConnector) addAppRow("GPS Connector", GPS, true);
         addAppRow("Spotify", SPOTIFY, false);
-        addLabel("Mediabron voor het dashboard");
-        Spinner mediaSource = new Spinner(this);
-        mediaSource.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
-                new String[]{"Spotify", "Lokale muziek", "Automatisch"}));
-        String source = prefs.getString(SettingsActivity.PREF_MEDIA_SOURCE, SettingsActivity.MEDIA_SOURCE_SPOTIFY);
-        mediaSource.setSelection(SettingsActivity.MEDIA_SOURCE_LOCAL.equals(source) ? 1
-                : SettingsActivity.MEDIA_SOURCE_AUTO.equals(source) ? 2 : 0);
-        mediaSource.setOnItemSelectedListener(new SimpleSelectionListener(position ->
-                prefs.edit().putString(SettingsActivity.PREF_MEDIA_SOURCE,
-                        new String[]{SettingsActivity.MEDIA_SOURCE_SPOTIFY, SettingsActivity.MEDIA_SOURCE_LOCAL,
-                                SettingsActivity.MEDIA_SOURCE_AUTO}[position]).apply()));
-        content.addView(mediaSource, fullWidth(58));
-        Button localLibrary = addButton("Lokale muziekmap kiezen");
-        localLibrary.setOnClickListener(v -> startActivity(new Intent(this, LocalMediaActivity.class)));
-        addInfo("Gebruik je lokale muziek, dan kun je Spotify overslaan. Bij Automatisch volgt RaspiCar de bron die daadwerkelijk speelt.");
+        addInfo("Voor lokale muziek of video kun je een aparte speler als gebruikerssnelkoppeling toevoegen.");
     }
 
     private void renderPermissions() {
@@ -135,11 +121,6 @@ public final class SetupActivity extends Activity {
                         Manifest.permission.ACCESS_COARSE_LOCATION}, 301));
         addPermissionRow("Camera", hasPermission(Manifest.permission.CAMERA), v ->
                 requestPermissions(new String[]{Manifest.permission.CAMERA}, 302));
-        if (android.os.Build.VERSION.SDK_INT >= 33) {
-            addPermissionRow("Lokale muzieknotificatie",
-                    hasPermission(Manifest.permission.POST_NOTIFICATIONS), v ->
-                            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 303));
-        }
         addPermissionRow("Spotify-mediatoegang (optioneel)", hasNotificationAccess(), v -> {
             Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
             if (!ExternalAppLauncher.launch(this, intent, "↩ Setup", true))
@@ -213,7 +194,6 @@ public final class SetupActivity extends Activity {
         if (prefs.getBoolean(SettingsActivity.PREF_START_GPS, true)) addCheck("GPS Connector", isInstalled(GPS));
         else addCheck("Ingebouwde Android-gps gekozen", true);
         addCheck("Spotify", isInstalled(SPOTIFY));
-        addCheck("Lokale muziekmap", prefs.getString(SettingsActivity.PREF_LOCAL_MEDIA_TREE, null) != null);
         addCheck("Locatie", hasPermission(Manifest.permission.ACCESS_FINE_LOCATION));
         addCheck("Camera", hasPermission(Manifest.permission.CAMERA));
         addCheck("Mediatoegang", hasNotificationAccess());
@@ -222,7 +202,7 @@ public final class SetupActivity extends Activity {
     }
 
     private void finishSetup() {
-        prefs.edit().putBoolean(SettingsActivity.PREF_SETUP_COMPLETE, true).apply();
+        prefs.edit().putBoolean(SettingsActivity.PREF_SETUP_COMPLETE, true).commit();
         startActivity(new Intent(this, DashboardActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK));
         finish();

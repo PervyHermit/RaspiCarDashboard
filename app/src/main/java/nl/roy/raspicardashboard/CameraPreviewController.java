@@ -15,6 +15,7 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
 import android.util.Size;
 import android.view.Surface;
 import android.view.TextureView;
@@ -81,7 +82,7 @@ public final class CameraPreviewController {
         if (cameraChanged && (cameraDevice != null || openingCamera)) {
             openGeneration++;
             openingCamera = false;
-            closeCamera();
+            closeCameraAsync(false);
         }
         if (cameraDevice != null) {
             applyTransform();
@@ -95,14 +96,7 @@ public final class CameraPreviewController {
         requested = false;
         openGeneration++;
         openingCamera = false;
-        closeCamera();
-        if (cameraThread != null) {
-            cameraThread.quitSafely();
-            try { cameraThread.join(700); }
-            catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-            cameraThread = null;
-            cameraHandler = null;
-        }
+        closeCameraAsync(true);
     }
 
     public String findBestCameraId() {
@@ -141,6 +135,11 @@ public final class CameraPreviewController {
     }
 
     private void openSelectedCamera() {
+        Handler handler = cameraHandler;
+        if (handler != null && Looper.myLooper() != handler.getLooper()) {
+            handler.post(this::openSelectedCamera);
+            return;
+        }
         if (!requested || cameraDevice != null || openingCamera) return;
         if (cameraManager == null) {
             notifyStatus("Cameraservice niet beschikbaar", true);
@@ -297,20 +296,38 @@ public final class CameraPreviewController {
         return 0;
     }
 
-    private void closeCamera() {
-        if (captureSession != null) {
-            try { captureSession.close(); } catch (RuntimeException ignored) { }
-            captureSession = null;
-        }
-        if (cameraDevice != null) {
-            try { cameraDevice.close(); } catch (RuntimeException ignored) { }
-            cameraDevice = null;
-        }
-        if (previewSurface != null) {
-            try { previewSurface.release(); } catch (RuntimeException ignored) { }
-            previewSurface = null;
-        }
+    private void closeCameraAsync(boolean stopThread) {
+        CameraCaptureSession session = captureSession;
+        CameraDevice device = cameraDevice;
+        Surface surface = previewSurface;
+        captureSession = null;
+        cameraDevice = null;
+        previewSurface = null;
         previewSize = null;
+
+        Handler handler = cameraHandler;
+        HandlerThread thread = cameraThread;
+        if (stopThread) {
+            cameraHandler = null;
+            cameraThread = null;
+        }
+        Runnable release = () -> {
+            releaseResources(session, device, surface);
+            if (stopThread && thread != null) thread.quitSafely();
+        };
+        if (handler == null || !handler.post(release)) release.run();
+    }
+
+    private static void releaseResources(CameraCaptureSession session, CameraDevice device, Surface surface) {
+        if (session != null) {
+            try { session.close(); } catch (RuntimeException ignored) { }
+        }
+        if (device != null) {
+            try { device.close(); } catch (RuntimeException ignored) { }
+        }
+        if (surface != null) {
+            try { surface.release(); } catch (RuntimeException ignored) { }
+        }
     }
 
     private void notifyStatus(String status, boolean error) {
@@ -363,7 +380,9 @@ public final class CameraPreviewController {
             applyTransform();
         }
         @Override public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-            closeCamera();
+            openGeneration++;
+            openingCamera = false;
+            closeCameraAsync(false);
             return true;
         }
         @Override public void onSurfaceTextureUpdated(SurfaceTexture surface) { }

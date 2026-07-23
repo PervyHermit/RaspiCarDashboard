@@ -10,8 +10,8 @@ android {
         applicationId 'nl.roy.raspicardashboard'
         minSdk 29
         targetSdk 36
-        versionCode 6
-        versionName '5.0.0-v5'
+        versionCode 7
+        versionName '5.1.0-v5.1'
     }
 
     def signingPath = System.getenv('RASPI_KEYSTORE_PATH')

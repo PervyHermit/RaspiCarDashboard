@@ -1,4 +1,4 @@
-# RaspiCar Dashboard V5
+# RaspiCar Dashboard V5.1
 
 Custom landscape launcher/dashboard for Android and Raspberry Pi 5 with LineageOS. The main target is a 1280×800 HDMI touchscreen with RaspiCar on the left and Waze on the right, while adaptive Compact, Medium and Large profiles support other window sizes.
 
@@ -6,12 +6,12 @@ Custom landscape launcher/dashboard for Android and Raspberry Pi 5 with LineageO
 
 > The image is the older V3 visual reference. V5 uses a more compact stacked layout.
 
-## V5 highlights
+## V5.1 highlights
 
-- Compact dashboard order: time/weather/speed, volume, camera/media and a combined app card.
-- Fixed apps and personal shortcuts share one icon-only card.
+- Compact dashboard order: time/weather/speed, camera/media, optional volume slider and a combined app card.
+- Fixed row: Camera, Spotify, Volume, Waze, Apps and Settings; six personal shortcuts sit below it.
 - Media controls are overlaid on the album artwork.
-- External apps launched from RaspiCar request the right-hand split-screen area and receive the return HUD.
+- Waze stays on the right; external apps replace the HUD on the left and receive the floating return button.
 - Adjustable status-card, app-card and camera-preview sizing.
 
 ## V4 foundations
@@ -19,27 +19,18 @@ Custom landscape launcher/dashboard for Android and Raspberry Pi 5 with LineageO
 - Waze remains on the right and is not forced open again after the user closes it.
 - A universal draggable **Return to dashboard** overlay is shown for external apps opened from RaspiCar.
 - GPS Connector is optional; devices with built-in Android GPS can skip it.
-- Spotify and a built-in local audio player are selectable media sources.
-- Local music is read only from a folder chosen through Android's Storage Access Framework.
-- Device media-volume slider between the media/camera card and fixed app buttons.
+- Spotify metadata and controls use Android MediaSession.
+- The Volume tile expands or collapses the device media-volume slider.
 - Camera preview keeps its aspect ratio instead of stretching.
 - Camera display mode: fit entire image or fill/crop.
 - Camera aspect preference: automatic, 4:3 or 16:9.
 - Adjustable camera preview width from 45% to 100% of the media panel.
-- Five configurable shortcuts plus a permanent Apps drawer.
+- Six configurable shortcuts plus Apps in the fixed row.
 - Embedded USB-camera preview, weather, GPS speed, themes and sun-based dimming.
 
-## Media sources
+## Media
 
-Tap the source label above the player to cycle through:
-
-- **Spotify** — follows only Spotify's Android MediaSession.
-- **Local music** — uses RaspiCar's built-in background audio player.
-- **Automatic** — prefers whichever supported source is actively playing.
-
-For Spotify metadata and controls, enable RaspiCar's notification-listener access.
-
-For local music, open **Settings → Local music folder and library**, choose a folder on internal storage, SD card or USB storage, then tap a track. RaspiCar keeps persistent read access only to the selected folder; broad all-files permission is not used.
+The dashboard follows Spotify through Android MediaSession. Enable RaspiCar's notification-listener access for metadata and controls. Local music and video can be opened in a separate player assigned to one of the six user slots; that app then opens on the left while Waze remains on the right.
 
 ## Universal return overlay
 
@@ -82,7 +73,7 @@ The camera is opened only while Camera mode is visible and is released when retu
 
 ## Volume
 
-The dashboard volume slider controls Android's `STREAM_MUSIC` volume. It applies to Spotify, RaspiCar local music and other apps using the normal media audio stream. Tap the speaker icon to mute and restore the previous volume.
+The dashboard volume slider controls Android's `STREAM_MUSIC` volume. It applies to Spotify and other apps using the normal media audio stream. Tap the speaker icon to mute and restore the previous volume.
 
 ## Waze behaviour
 
@@ -104,7 +95,7 @@ The dim layer is touch-through. On an HDMI display it darkens the rendered image
 
 The workflow artifact is:
 
-`RaspiCarDashboard-v5-debug`
+`RaspiCarDashboard-v5.1-debug`
 
 The APK inside is:
 
@@ -112,4 +103,4 @@ The APK inside is:
 
 See [BUILD_WITH_GITHUB.md](BUILD_WITH_GITHUB.md) and [SIGNING_WITH_GITHUB.md](SIGNING_WITH_GITHUB.md).
 
-V5 keeps the same application ID and persistent-signing support introduced for V3. With the same GitHub signing secrets, V5 installs directly over the signed V4 build.
+V5.1 keeps the same application ID and persistent-signing support introduced for V3. With the same GitHub signing secrets, V5.1 installs directly over the signed V5 build.

@@ -1,5 +1,20 @@
 # Changelog
 
+## V5 — 5.0.0
+
+- Rebuilt the dashboard as a compact vertical stack: time/weather/speed, volume, camera/media and one combined app card.
+- Moved the speed meter into the top status card.
+- Combined fixed apps, shortcuts and the Apps drawer without section headings or icon labels.
+- Replaced the GPS dashboard tile with a volume mute/restore tile; optional GPS Connector startup remains available.
+- Moved Waze beside RaspiCar settings in the fixed app row.
+- Placed previous, play/pause and next controls over the album artwork.
+- Kept the volume slider visible while either media or camera is active.
+- Added adjustable top-status and app-card heights alongside the existing camera-width setting.
+- Requested split-screen launch bounds for external apps opened from fixed buttons, shortcuts and the Apps drawer.
+- Kept the draggable return-to-dashboard HUD available for apps launched from the Apps drawer.
+- Hardened USB-camera discovery so stale or malformed camera IDs are skipped individually.
+- Removed the LineageOS/Raspberry Pi footer and redundant dashboard source labels.
+
 ## V4.0.2 — camera stability fix
 
 - Fixed a crash when opening **Camera kiezen** on some Camera2/USB-camera implementations.

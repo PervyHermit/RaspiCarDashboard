@@ -111,10 +111,23 @@ public final class CameraPreviewController {
             String[] ids = cameraManager.getCameraIdList();
             if (ids.length == 0) return null;
             for (String id : ids) {
-                Integer facing = cameraManager.getCameraCharacteristics(id).get(CameraCharacteristics.LENS_FACING);
-                if (facing != null && facing == CameraCharacteristics.LENS_FACING_EXTERNAL) return id;
+                try {
+                    CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(id);
+                    Integer facing = characteristics.get(CameraCharacteristics.LENS_FACING);
+                    if (facing != null && facing == CameraCharacteristics.LENS_FACING_EXTERNAL) return id;
+                } catch (CameraAccessException | RuntimeException ignored) {
+                    // Some USB providers expose stale IDs; keep checking the remaining devices.
+                }
             }
-            return ids[0];
+            for (String id : ids) {
+                try {
+                    cameraManager.getCameraCharacteristics(id);
+                    return id;
+                } catch (CameraAccessException | RuntimeException ignored) {
+                    // Skip unusable camera IDs instead of failing the whole camera screen.
+                }
+            }
+            return null;
         } catch (CameraAccessException | RuntimeException e) {
             return null;
         }
@@ -210,6 +223,7 @@ public final class CameraPreviewController {
     private void applyTransform() {
         if (previewSize == null || textureView.getWidth() <= 0 || textureView.getHeight() <= 0) return;
         activity.runOnUiThread(() -> {
+            if (activity.isFinishing() || activity.isDestroyed() || !requested) return;
             float viewWidth = textureView.getWidth();
             float viewHeight = textureView.getHeight();
             float bufferWidth = previewSize.getWidth();
@@ -247,7 +261,7 @@ public final class CameraPreviewController {
                     .get(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES);
             if (modes == null) return false;
             for (int mode : modes) if (mode == CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO) return true;
-        } catch (CameraAccessException | IllegalArgumentException ignored) { }
+        } catch (CameraAccessException | RuntimeException ignored) { }
         return false;
     }
 

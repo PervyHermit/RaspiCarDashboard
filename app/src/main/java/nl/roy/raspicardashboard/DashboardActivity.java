@@ -227,10 +227,10 @@ public final class DashboardActivity extends Activity implements LocationListene
         LayoutProfile newProfile = resolveLayoutProfile();
         if (newProfile != layoutProfile) {
             layoutProfile = newProfile;
-            applyLayoutProfile();
             buildFixedApps();
             rebuildCustomApps();
         }
+        applyLayoutProfile();
         ThemeManager.apply(this);
         tintProgress();
         rebuildCustomApps();
@@ -284,7 +284,6 @@ public final class DashboardActivity extends Activity implements LocationListene
         cameraPanel = findViewById(R.id.cameraPanel);
         cameraPreview = findViewById(R.id.cameraPreview);
         cameraStatus = findViewById(R.id.cameraStatus);
-        findViewById(R.id.openWazeButton).setOnClickListener(v -> openNavigation());
         findViewById(R.id.backToMediaButton).setOnClickListener(v -> showMediaPanel());
         findViewById(R.id.cameraMirrorButton).setOnClickListener(v -> toggleCameraMirror());
         modeTitle.setOnClickListener(v -> cycleMediaSource());
@@ -359,18 +358,14 @@ public final class DashboardActivity extends Activity implements LocationListene
 
     private void buildFixedApps() {
         fixedAppsContainer.removeAllViews();
-        boolean externalGps = prefs.getBoolean(SettingsActivity.PREF_START_GPS, true);
-        if (externalGps) {
-            fixedAppsContainer.addView(createAppButton("GPS Connector", GPS_CONNECTOR_PACKAGE, 0,
-                    v -> launchPackage(GPS_CONNECTOR_PACKAGE)));
-        } else {
-            fixedAppsContainer.addView(createAppButton("Waze", WAZE_PACKAGE, 0, v -> openNavigation()));
-        }
         fixedAppsContainer.addView(createAppButton("Camera", null, R.drawable.ic_camera,
                 v -> toggleCameraPanel()));
         boolean local = isLocalSourceActive();
         fixedAppsContainer.addView(createAppButton("Muziek", local ? null : SPOTIFY_PACKAGE,
                 local ? R.drawable.ic_music : 0, v -> openCurrentMediaSource()));
+        fixedAppsContainer.addView(createAppButton("Volume", null, R.drawable.ic_volume,
+                v -> toggleVolume()));
+        fixedAppsContainer.addView(createAppButton("Waze", WAZE_PACKAGE, 0, v -> openNavigation()));
         fixedAppsContainer.addView(createAppButton("Instellingen", null, R.drawable.ic_settings,
                 v -> startActivity(new Intent(this, SettingsActivity.class))));
         ThemeManager.apply(this);
@@ -393,16 +388,7 @@ public final class DashboardActivity extends Activity implements LocationListene
                 : layoutProfile == LayoutProfile.LARGE ? 60 : 52;
         button.addView(icon, new LinearLayout.LayoutParams(dp(iconSize), dp(iconSize)));
 
-        TextView text = new TextView(this);
-        text.setGravity(Gravity.CENTER);
-        text.setMaxLines(1);
-        text.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        text.setText(label);
-        text.setTextColor(ThemeManager.getPalette(this).textPrimary);
-        float font = layoutProfile == LayoutProfile.COMPACT ? 7.5f : (label.length() > 10 ? 9f : 11f);
-        text.setTextSize(font);
-        button.addView(text, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(layoutProfile == LayoutProfile.COMPACT ? 16 : 24)));
+        button.setContentDescription(label);
 
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
         params.setMargins(dp(4), 0, dp(4), 0);
@@ -423,23 +409,18 @@ public final class DashboardActivity extends Activity implements LocationListene
         LinearLayout slotView = createBaseSlot();
         ImageView icon = new ImageView(this);
         icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        TextView label = createSlotLabel();
-
         if (packageName == null || !isInstalled(packageName)) {
             icon.setImageResource(R.drawable.ic_plus);
-            label.setText("+");
-            label.setTextSize(18);
+            slotView.setContentDescription("Snelkoppeling toevoegen");
             slotView.setOnClickListener(v -> openAppPicker(slot));
         } else {
             icon.setImageDrawable(loadAppIcon(packageName));
-            label.setText(loadAppLabel(packageName));
+            slotView.setContentDescription(loadAppLabel(packageName));
             slotView.setOnClickListener(v -> launchPackage(packageName));
             slotView.setOnLongClickListener(v -> beginSlotDrag(v, slot));
         }
         int iconSize = layoutProfile == LayoutProfile.COMPACT ? 32 : layoutProfile == LayoutProfile.LARGE ? 54 : 48;
         slotView.addView(icon, new LinearLayout.LayoutParams(dp(iconSize), dp(iconSize)));
-        slotView.addView(label, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(layoutProfile == LayoutProfile.COMPACT ? 16 : 22)));
         return slotView;
     }
 
@@ -448,12 +429,9 @@ public final class DashboardActivity extends Activity implements LocationListene
         ImageView icon = new ImageView(this);
         icon.setImageResource(R.drawable.ic_apps);
         icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        TextView label = createSlotLabel();
-        label.setText("Apps");
+        slotView.setContentDescription("Alle apps");
         int iconSize = layoutProfile == LayoutProfile.COMPACT ? 32 : layoutProfile == LayoutProfile.LARGE ? 54 : 48;
         slotView.addView(icon, new LinearLayout.LayoutParams(dp(iconSize), dp(iconSize)));
-        slotView.addView(label, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(layoutProfile == LayoutProfile.COMPACT ? 16 : 22)));
         slotView.setOnClickListener(v -> {
             Intent drawer = new Intent(this, AppPickerActivity.class)
                     .putExtra(AppPickerActivity.EXTRA_LAUNCH_MODE, true);
@@ -473,16 +451,6 @@ public final class DashboardActivity extends Activity implements LocationListene
         params.setMargins(dp(3), 0, dp(3), 0);
         slotView.setLayoutParams(params);
         return slotView;
-    }
-
-    private TextView createSlotLabel() {
-        TextView label = new TextView(this);
-        label.setGravity(Gravity.CENTER);
-        label.setTextColor(ThemeManager.getPalette(this).textPrimary);
-        label.setTextSize(layoutProfile == LayoutProfile.COMPACT ? 7.5f : 9f);
-        label.setMaxLines(1);
-        label.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        return label;
     }
 
     private boolean beginSlotDrag(View view, int slot) {
@@ -546,7 +514,7 @@ public final class DashboardActivity extends Activity implements LocationListene
         cameraMode = true;
         mediaPanel.setVisibility(View.GONE);
         cameraPanel.setVisibility(View.VISIBLE);
-        setVolumeCardVisible(false);
+        setVolumeCardVisible(true);
         modeTitle.setText("CAMERA");
         startSelectedCamera();
     }
@@ -847,10 +815,7 @@ public final class DashboardActivity extends Activity implements LocationListene
     private void updateActiveMediaUi() {
         if (cameraMode) return;
         boolean local = isLocalSourceActive();
-        String configured = prefs.getString(SettingsActivity.PREF_MEDIA_SOURCE, SettingsActivity.MEDIA_SOURCE_SPOTIFY);
-        if (SettingsActivity.MEDIA_SOURCE_AUTO.equals(configured))
-            modeTitle.setText(local ? "AUTO · LOKAAL  ▾" : "AUTO · SPOTIFY  ▾");
-        else modeTitle.setText(local ? "LOKALE MUZIEK  ▾" : "SPOTIFY  ▾");
+        modeTitle.setText("MUZIEK  ▾");
         if (local) updateLocalMediaUi();
         else updateSpotifyMediaUi();
     }
@@ -976,17 +941,20 @@ public final class DashboardActivity extends Activity implements LocationListene
             @Override public void onStartTrackingTouch(SeekBar seekBar) { }
             @Override public void onStopTrackingTouch(SeekBar seekBar) { }
         });
-        findViewById(R.id.volumeIcon).setOnClickListener(v -> {
-            int current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-            if (current > 0) {
-                prefs.edit().putInt("last_nonzero_volume", current).apply();
-                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0);
-            } else {
-                int restore = prefs.getInt("last_nonzero_volume", Math.max(1, volumeSeek.getMax() / 2));
-                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, restore, 0);
-            }
-            syncVolumeUi();
-        });
+        findViewById(R.id.volumeIcon).setOnClickListener(v -> toggleVolume());
+    }
+
+    private void toggleVolume() {
+        if (audioManager == null || volumeSeek == null) return;
+        int current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+        if (current > 0) {
+            prefs.edit().putInt("last_nonzero_volume", current).apply();
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0);
+        } else {
+            int restore = prefs.getInt("last_nonzero_volume", Math.max(1, volumeSeek.getMax() / 2));
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, restore, 0);
+        }
+        syncVolumeUi();
     }
 
     private void syncVolumeUi() {
@@ -1051,46 +1019,34 @@ public final class DashboardActivity extends Activity implements LocationListene
         int rootPadding;
         int headerHeight;
         int appsHeight;
-        int shortcutHeight;
         int volumeHeight;
-        int footerHeight;
-        int dynamicHeaderHeight;
         if (layoutProfile == LayoutProfile.COMPACT) {
-            rootPadding = 4; headerHeight = 54; appsHeight = 74; shortcutHeight = 70;
-            volumeHeight = 40; footerHeight = 0; dynamicHeaderHeight = 40;
+            rootPadding = 4; headerHeight = 54; appsHeight = 116; volumeHeight = 38;
         } else if (layoutProfile == LayoutProfile.LARGE) {
-            rootPadding = 16; headerHeight = 108; appsHeight = 138; shortcutHeight = 130;
-            volumeHeight = 60; footerHeight = 28; dynamicHeaderHeight = 64;
+            rootPadding = 16; headerHeight = 100; appsHeight = 196; volumeHeight = 58;
         } else {
-            rootPadding = 12; headerHeight = 92; appsHeight = 122; shortcutHeight = 116;
-            volumeHeight = 52; footerHeight = 24; dynamicHeaderHeight = 58;
+            rootPadding = 10; headerHeight = 82; appsHeight = 164; volumeHeight = 48;
         }
+        headerHeight = Math.max(60, Math.min(120,
+                prefs.getInt(SettingsActivity.PREF_HEADER_HEIGHT_DP, headerHeight)));
+        appsHeight = Math.max(110, Math.min(240,
+                prefs.getInt(SettingsActivity.PREF_APPS_HEIGHT_DP, appsHeight)));
 
         View root = findViewById(R.id.root);
         root.setPadding(dp(rootPadding), dp(rootPadding), dp(rootPadding), dp(rootPadding));
         setViewHeight(R.id.headerCard, headerHeight);
         setViewHeight(R.id.volumeCard, volumeHeight);
-        setVolumeCardVisible(!cameraMode);
-        setViewHeight(R.id.fixedAppsCard, appsHeight);
-        setViewHeight(R.id.shortcutsCard, shortcutHeight);
-        setViewHeight(R.id.footerText, footerHeight);
-        setViewHeight(R.id.dynamicHeader, dynamicHeaderHeight);
+        setVolumeCardVisible(true);
+        setViewHeight(R.id.appsCard, appsHeight);
 
         View dynamicCard = findViewById(R.id.dynamicCard);
-        View fixedCard = findViewById(R.id.fixedAppsCard);
-        View shortcutsCard = findViewById(R.id.shortcutsCard);
+        View appsCard = findViewById(R.id.appsCard);
         if (layoutProfile == LayoutProfile.COMPACT) {
             dynamicCard.setPadding(dp(6), dp(4), dp(6), dp(4));
-            fixedCard.setPadding(dp(4), dp(3), dp(4), dp(3));
-            shortcutsCard.setPadding(dp(4), dp(3), dp(4), dp(3));
-            findViewById(R.id.fixedSectionTitle).setVisibility(View.GONE);
-            findViewById(R.id.shortcutSectionTitle).setVisibility(View.GONE);
+            appsCard.setPadding(dp(4), dp(3), dp(4), dp(3));
         } else {
-            dynamicCard.setPadding(dp(14), dp(14), dp(14), dp(14));
-            fixedCard.setPadding(dp(9), dp(9), dp(9), dp(9));
-            shortcutsCard.setPadding(dp(9), dp(9), dp(9), dp(9));
-            findViewById(R.id.fixedSectionTitle).setVisibility(View.VISIBLE);
-            findViewById(R.id.shortcutSectionTitle).setVisibility(View.VISIBLE);
+            dynamicCard.setPadding(dp(10), dp(10), dp(10), dp(10));
+            appsCard.setPadding(dp(7), dp(7), dp(7), dp(7));
         }
 
         timeText.setTextSize(layoutProfile == LayoutProfile.COMPACT ? 27 : layoutProfile == LayoutProfile.LARGE ? 46 : 40);
@@ -1103,25 +1059,20 @@ public final class DashboardActivity extends Activity implements LocationListene
         artistText.setTextSize(layoutProfile == LayoutProfile.COMPACT ? 10 : layoutProfile == LayoutProfile.LARGE ? 16 : 14);
 
         int artSize = layoutProfile == LayoutProfile.COMPACT ? 60 : layoutProfile == LayoutProfile.LARGE ? 122 : 105;
-        ViewGroup.LayoutParams artParams = albumArt.getLayoutParams();
+        View artContainer = findViewById(R.id.albumArtControls);
+        ViewGroup.LayoutParams artParams = artContainer.getLayoutParams();
         artParams.width = dp(artSize);
         artParams.height = dp(artSize);
-        albumArt.setLayoutParams(artParams);
+        artContainer.setLayoutParams(artParams);
 
         resizeSquare(R.id.speedText, layoutProfile == LayoutProfile.COMPACT ? 40 : layoutProfile == LayoutProfile.LARGE ? 66 : 58);
         speedText.setTextSize(layoutProfile == LayoutProfile.COMPACT ? 10 : layoutProfile == LayoutProfile.LARGE ? 16 : 14);
-        resizeSquare(R.id.previousButton, layoutProfile == LayoutProfile.COMPACT ? 30 : layoutProfile == LayoutProfile.LARGE ? 58 : 52);
-        resizeSquare(R.id.nextButton, layoutProfile == LayoutProfile.COMPACT ? 30 : layoutProfile == LayoutProfile.LARGE ? 58 : 52);
-        resizeSquare(R.id.playPauseButton, layoutProfile == LayoutProfile.COMPACT ? 36 : layoutProfile == LayoutProfile.LARGE ? 68 : 60);
-        playPauseButton.setTextSize(layoutProfile == LayoutProfile.COMPACT ? 16 : layoutProfile == LayoutProfile.LARGE ? 27 : 24);
+        resizeSquare(R.id.previousButton, layoutProfile == LayoutProfile.COMPACT ? 18 : layoutProfile == LayoutProfile.LARGE ? 36 : 30);
+        resizeSquare(R.id.nextButton, layoutProfile == LayoutProfile.COMPACT ? 18 : layoutProfile == LayoutProfile.LARGE ? 36 : 30);
+        resizeSquare(R.id.playPauseButton, layoutProfile == LayoutProfile.COMPACT ? 24 : layoutProfile == LayoutProfile.LARGE ? 46 : 40);
+        playPauseButton.setTextSize(layoutProfile == LayoutProfile.COMPACT ? 14 : layoutProfile == LayoutProfile.LARGE ? 23 : 20);
         mediaProgress.setVisibility(layoutProfile == LayoutProfile.COMPACT ? View.GONE : View.VISIBLE);
 
-        TextView openWaze = findViewById(R.id.openWazeButton);
-        ViewGroup.LayoutParams wazeParams = openWaze.getLayoutParams();
-        wazeParams.height = dp(layoutProfile == LayoutProfile.COMPACT ? 34 : 42);
-        openWaze.setLayoutParams(wazeParams);
-        openWaze.setMinWidth(dp(layoutProfile == LayoutProfile.COMPACT ? 76 : 96));
-        openWaze.setTextSize(layoutProfile == LayoutProfile.COMPACT ? 10 : 13);
     }
 
     private void resizeSquare(int id, int sizeDp) {

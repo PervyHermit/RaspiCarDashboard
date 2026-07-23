@@ -37,6 +37,8 @@ public final class SettingsActivity extends Activity {
     static final String PREF_CAMERA_SCALE = "camera_scale";
     static final String PREF_CAMERA_ASPECT = "camera_aspect";
     static final String PREF_CAMERA_WIDTH_PERCENT = "camera_width_percent";
+    static final String PREF_HEADER_HEIGHT_DP = "header_height_dp";
+    static final String PREF_APPS_HEIGHT_DP = "apps_height_dp";
     static final String PREF_DIM_MODE = "dim_mode";
     static final String PREF_DIM_PERCENT = "dim_percent";
     static final String PREF_DIM_DAY_PERCENT = "dim_day_percent";
@@ -60,6 +62,10 @@ public final class SettingsActivity extends Activity {
     private SeekBar cameraWidthSeek;
     private TextView cameraWidthLabel;
     private Spinner layoutSpinner;
+    private SeekBar headerHeightSeek;
+    private SeekBar appsHeightSeek;
+    private TextView headerHeightLabel;
+    private TextView appsHeightLabel;
     private Spinner themeSpinner;
     private Spinner dimModeSpinner;
     private SeekBar manualDimSeek;
@@ -109,6 +115,10 @@ public final class SettingsActivity extends Activity {
         cameraWidthSeek = findViewById(R.id.cameraWidthSeek);
         cameraWidthLabel = findViewById(R.id.cameraWidthLabel);
         layoutSpinner = findViewById(R.id.layoutSpinner);
+        headerHeightSeek = findViewById(R.id.headerHeightSeek);
+        appsHeightSeek = findViewById(R.id.appsHeightSeek);
+        headerHeightLabel = findViewById(R.id.headerHeightLabel);
+        appsHeightLabel = findViewById(R.id.appsHeightLabel);
         themeSpinner = findViewById(R.id.themeSpinner);
         dimModeSpinner = findViewById(R.id.dimModeSpinner);
         manualDimSeek = findViewById(R.id.manualDimSeek);
@@ -154,6 +164,10 @@ public final class SettingsActivity extends Activity {
                 : CameraPreviewController.ASPECT_16_9.equals(cameraAspect) ? 2 : 0);
         cameraWidthSeek.setProgress(Math.max(45, prefs.getInt(PREF_CAMERA_WIDTH_PERCENT, 100)) - 45);
         layoutSpinner.setSelection(layoutIndex(prefs.getString(PREF_LAYOUT_SIZE, "auto")));
+        headerHeightSeek.setProgress(Math.max(60, Math.min(120,
+                prefs.getInt(PREF_HEADER_HEIGHT_DP, 82))) - 60);
+        appsHeightSeek.setProgress(Math.max(110, Math.min(240,
+                prefs.getInt(PREF_APPS_HEIGHT_DP, 164))) - 110);
         themeSpinner.setSelection(themeIndex(prefs.getString(ThemeManager.PREF_THEME, ThemeManager.THEME_BLUE)));
         dimModeSpinner.setSelection(dimModeIndex(prefs.getString(PREF_DIM_MODE, DIM_MODE_OFF)));
         manualDimSeek.setProgress(prefs.getInt(PREF_DIM_PERCENT, 35));
@@ -214,6 +228,8 @@ public final class SettingsActivity extends Activity {
             prefs.edit().putString(PREF_LAYOUT_SIZE,
                     new String[]{"auto", "compact", "medium", "large"}[position]).apply();
         }));
+        headerHeightSeek.setOnSeekBarChangeListener(sizeSeekListener(PREF_HEADER_HEIGHT_DP, 60));
+        appsHeightSeek.setOnSeekBarChangeListener(sizeSeekListener(PREF_APPS_HEIGHT_DP, 110));
         themeSpinner.setOnItemSelectedListener(new SelectionListener(position -> {
             if (binding) return;
             String[] themes = {ThemeManager.THEME_BLUE, ThemeManager.THEME_GRAPHITE,
@@ -289,6 +305,17 @@ public final class SettingsActivity extends Activity {
         };
     }
 
+    private SeekBar.OnSeekBarChangeListener sizeSeekListener(String preference, int minimum) {
+        return new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                prefs.edit().putInt(preference, minimum + progress).apply();
+                refreshLabels();
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) { }
+            @Override public void onStopTrackingTouch(SeekBar seekBar) { }
+        };
+    }
+
     private void applyCustomAccent() {
         String value = customAccentInput.getText().toString().trim();
         int parsed = ThemeManager.parseAccent(value);
@@ -343,6 +370,8 @@ public final class SettingsActivity extends Activity {
         int offset = sunOffsetSeek.getProgress() - 120;
         sunOffsetLabel.setText("Zonmoment verschuiven: " + (offset > 0 ? "+" : "") + offset + " minuten");
         cameraWidthLabel.setText("Camerabreedte in paneel: " + (cameraWidthSeek.getProgress() + 45) + "%");
+        headerHeightLabel.setText("Hoogte tijd/weer/km-u: " + (headerHeightSeek.getProgress() + 60) + " dp");
+        appsHeightLabel.setText("Hoogte gecombineerde appbalk: " + (appsHeightSeek.getProgress() + 110) + " dp");
         String id = prefs.getString(PREF_CAMERA_ID, null);
         cameraSelectionText.setText(id == null ? "Nog geen camera gekozen" : "Gekozen camera: " + id
                 + (prefs.getBoolean(PREF_CAMERA_MIRROR, false) ? " • gespiegeld" : "")

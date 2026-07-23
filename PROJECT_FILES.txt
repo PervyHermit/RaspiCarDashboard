@@ -1,4 +1,4 @@
-RaspiCar Dashboard V4 project contents
+RaspiCar Dashboard V5 project contents
 
 .github/workflows/build-apk.yml
 app/build.gradle
@@ -40,6 +40,7 @@ SOURCE_AUDIT.md
 V2_UPDATE_GUIDE.md
 V3_UPDATE_GUIDE.md
 V4_UPDATE_GUIDE.md
+V5_UPDATE_GUIDE.md
 build.gradle
 gradle.properties
 settings.gradle

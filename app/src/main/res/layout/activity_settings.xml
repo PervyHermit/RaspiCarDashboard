@@ -176,6 +176,39 @@
             android:layout_height="58dp"
             android:layout_marginTop="8dp" />
 
+        <TextView
+            android:id="@+id/headerHeightLabel"
+            android:tag="secondaryText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="Hoogte tijd/weer/km-u"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp" />
+
+        <SeekBar
+            android:id="@+id/headerHeightSeek"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:max="60"
+            android:progress="22" />
+
+        <TextView
+            android:id="@+id/appsHeightLabel"
+            android:tag="secondaryText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Hoogte appbalk"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp" />
+
+        <SeekBar
+            android:id="@+id/appsHeightSeek"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:max="130"
+            android:progress="54" />
+
         <Spinner
             android:id="@+id/themeSpinner"
             android:tag="panel"

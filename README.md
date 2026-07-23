@@ -1,12 +1,20 @@
-# RaspiCar Dashboard V4
+# RaspiCar Dashboard V5
 
 Custom landscape launcher/dashboard for Android and Raspberry Pi 5 with LineageOS. The main target is a 1280×800 HDMI touchscreen with RaspiCar on the left and Waze on the right, while adaptive Compact, Medium and Large profiles support other window sizes.
 
 ![RaspiCar Dashboard visual reference](docs/v3-dashboard.png)
 
-> The image is the V3 visual reference. V4 keeps this layout and adds the media-volume row, local music source and new camera sizing controls.
+> The image is the older V3 visual reference. V5 uses a more compact stacked layout.
 
-## V4 highlights
+## V5 highlights
+
+- Compact dashboard order: time/weather/speed, volume, camera/media and a combined app card.
+- Fixed apps and personal shortcuts share one icon-only card.
+- Media controls are overlaid on the album artwork.
+- External apps launched from RaspiCar request the right-hand split-screen area and receive the return HUD.
+- Adjustable status-card, app-card and camera-preview sizing.
+
+## V4 foundations
 
 - Waze remains on the right and is not forced open again after the user closes it.
 - A universal draggable **Return to dashboard** overlay is shown for external apps opened from RaspiCar.
@@ -96,7 +104,7 @@ The dim layer is touch-through. On an HDMI display it darkens the rendered image
 
 The workflow artifact is:
 
-`RaspiCarDashboard-v4-debug`
+`RaspiCarDashboard-v5-debug`
 
 The APK inside is:
 
@@ -104,4 +112,4 @@ The APK inside is:
 
 See [BUILD_WITH_GITHUB.md](BUILD_WITH_GITHUB.md) and [SIGNING_WITH_GITHUB.md](SIGNING_WITH_GITHUB.md).
 
-V4 keeps the same application ID and persistent-signing support introduced for V3. When the same GitHub signing secrets are used, V4 should install directly over the persistently signed V3 build.
+V5 keeps the same application ID and persistent-signing support introduced for V3. With the same GitHub signing secrets, V5 installs directly over the signed V4 build.

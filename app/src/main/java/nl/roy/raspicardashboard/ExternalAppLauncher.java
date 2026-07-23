@@ -1,9 +1,11 @@
 package nl.roy.raspicardashboard;
 
 import android.app.Activity;
+import android.app.ActivityOptions;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Rect;
 import android.provider.Settings;
 import android.widget.Toast;
 
@@ -14,22 +16,33 @@ public final class ExternalAppLauncher {
     public static boolean launchPackage(Activity activity, String packageName) {
         Intent launch = activity.getPackageManager().getLaunchIntentForPackage(packageName);
         if (launch == null) return false;
-        launch.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NEW_TASK);
+        launch.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT | Intent.FLAG_ACTIVITY_NO_ANIMATION);
         return launch(activity, launch, "↩ Dashboard", true);
     }
 
     public static boolean launch(Activity activity, Intent intent, String label, boolean showReturnButton) {
         if (showReturnButton) showReturnOverlay(activity, label);
         try {
-            activity.startActivity(intent);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
+            Rect full = activity.getWindowManager().getMaximumWindowMetrics().getBounds();
+            int left = full.left + Math.round(full.width() * 0.35f);
+            ActivityOptions options = ActivityOptions.makeBasic();
+            options.setLaunchBounds(new Rect(left, full.top, full.right, full.bottom));
+            activity.startActivity(intent, options.toBundle());
             return true;
         } catch (RuntimeException e) {
-            if (showReturnButton) {
-                activity.stopService(new Intent(activity, ExternalAppOverlayService.class)
-                        .setAction(ExternalAppOverlayService.ACTION_STOP));
+            try {
+                activity.startActivity(intent);
+                return true;
+            } catch (RuntimeException fallback) {
+                if (showReturnButton) {
+                    activity.stopService(new Intent(activity, ExternalAppOverlayService.class)
+                            .setAction(ExternalAppOverlayService.ACTION_STOP));
+                }
+                Toast.makeText(activity, "App of scherm kon niet worden geopend", Toast.LENGTH_SHORT).show();
+                return false;
             }
-            Toast.makeText(activity, "App of scherm kon niet worden geopend", Toast.LENGTH_SHORT).show();
-            return false;
         }
     }
 
